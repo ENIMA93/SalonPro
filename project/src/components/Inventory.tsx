@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, Package } from 'lucide-react';
 import { supabase, type Inventory } from '../lib/supabase';
 import ProductModal from './ProductModal';
-// FIX: Temporarily comment out ProductModal import due to missing module or type
-// import ProductModal from './ProductModal';
 
 export default function Inventory() {
   const [products, setProducts] = useState<Inventory[]>([]);

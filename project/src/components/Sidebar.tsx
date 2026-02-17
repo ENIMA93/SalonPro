@@ -6,6 +6,7 @@ import {
   Scissors,
   Users,
   UserCircle,
+  Receipt,
   Settings
 } from 'lucide-react';
 
@@ -17,6 +18,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'pos', label: 'POS', icon: CreditCard },
+  { id: 'transactions', label: 'Sales History', icon: Receipt },
   { id: 'inventory', label: 'Inventory', icon: Package },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'services', label: 'Services', icon: Scissors },

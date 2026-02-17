@@ -6,6 +6,7 @@ import Staff from './components/Staff';
 import Clients from './components/Clients';
 import Calendar from './components/Calendar';
 import POS from './components/POS';
+import Transactions from './pages/Transactions';
 import Inventory from './components/Inventory';
 import Settings from './components/Settings';
 
@@ -20,6 +21,7 @@ function App() {
       case 'clients': return <Clients />;
       case 'calendar': return <Calendar />;
       case 'pos': return <POS />;
+      case 'transactions': return <Transactions />;
       case 'inventory': return <Inventory />;
       case 'settings': return <Settings />;
       default: return <Dashboard />;
