@@ -14,12 +14,13 @@ type SortDir = 'asc' | 'desc';
 
 function formatTableDate(iso: string): string {
   const d = new Date(iso);
-  const month = d.toLocaleDateString('en-US', { month: 'short' });
-  const day = d.getDate();
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  return `${month} ${day}, ${time}`;
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 export default function Transactions() {
