@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { DollarSign, Calendar, UserPlus, Users, Plus } from 'lucide-react';
 import MetricCard from './MetricCard';
 import AppointmentsList from './AppointmentsList';
-import BookingModal from './BookingModal';
+import BookingModal, { type EditingAppointment } from './BookingModal';
 import KPIDetailModal from './KPIDetailModal';
 import { supabase } from '../lib/supabase';
+import { useSettings } from '../lib/SettingsContext';
 
 type KPIDetailType = 'revenue' | 'appointments' | 'clients' | 'staff';
 
@@ -17,7 +18,9 @@ interface Metrics {
 }
 
 export default function Dashboard() {
+  const { settings } = useSettings();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<EditingAppointment | null>(null);
   const [kpiDetailType, setKpiDetailType] = useState<KPIDetailType | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [metrics, setMetrics] = useState<Metrics>({
@@ -107,8 +110,9 @@ export default function Dashboard() {
       <div className="p-8">
         <BookingModal
           isOpen={bookingModalOpen}
-          onClose={() => setBookingModalOpen(false)}
+          onClose={() => { setBookingModalOpen(false); setEditingAppointment(null); }}
           onSuccess={() => setRefreshKey((k) => k + 1)}
+          editingAppointment={editingAppointment}
         />
         {kpiDetailType && (
           <KPIDetailModal type={kpiDetailType} onClose={() => setKpiDetailType(null)} />
@@ -119,7 +123,7 @@ export default function Dashboard() {
             <p className="text-gray-400">Welcome back! Here's what's happening today.</p>
           </div>
           <button
-            onClick={() => setBookingModalOpen(true)}
+            onClick={() => { setEditingAppointment(null); setBookingModalOpen(true); }}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-semibold shadow-lg shadow-purple-500/30 transition-all hover:scale-105"
           >
             <Plus className="w-5 h-5" />
@@ -139,7 +143,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricCard
                 title="Total Revenue (Today)"
-                value={`${metrics.totalRevenueToday.toFixed(2)} DH`}
+                value={`${metrics.totalRevenueToday.toFixed(2)} ${settings.currency}`}
                 icon={DollarSign}
                 trend={{ value: 'Appointments + POS sales', isPositive: true }}
                 iconColor="text-green-400"
@@ -174,7 +178,15 @@ export default function Dashboard() {
               />
             </div>
 
-            <AppointmentsList refreshKey={refreshKey} />
+            <AppointmentsList
+              refreshKey={refreshKey}
+              onEdit={(apt) => { setEditingAppointment(apt); setBookingModalOpen(true); }}
+              onCancel={async (apt) => {
+                if (!window.confirm(`Cancel appointment with ${apt.client_name}?`)) return;
+                const { error } = await supabase.from('appointments').update({ status: 'cancelled' }).eq('id', apt.id);
+                if (!error) setRefreshKey((k) => k + 1);
+              }}
+            />
           </>
         )}
       </div>

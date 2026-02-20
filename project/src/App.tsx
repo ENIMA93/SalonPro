@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SettingsProvider } from './lib/SettingsContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Services from './components/Services';
@@ -29,10 +30,12 @@ function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-900">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      {renderContent()}
-    </div>
+    <SettingsProvider>
+      <div className="flex min-h-screen bg-gray-900">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        {renderContent()}
+      </div>
+    </SettingsProvider>
   );
 }
 
