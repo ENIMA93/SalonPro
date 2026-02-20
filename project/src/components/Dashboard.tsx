@@ -39,7 +39,7 @@ export default function Dashboard() {
 
         const weekStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-        const [appointmentsRes, staffRes, staffActiveRes] = await Promise.all([
+        const [appointmentsRes, staffRes, staffActiveRes, transactionsRes] = await Promise.all([
           supabase
             .from('appointments')
             .select('id, status, services:service_id(price)', { count: 'exact' })
@@ -51,7 +51,12 @@ export default function Dashboard() {
           supabase
             .from('staff')
             .select('id', { count: 'exact' })
-            .eq('is_active', true)
+            .eq('is_active', true),
+          supabase
+            .from('transactions')
+            .select('total_amount')
+            .gte('created_at', todayStart)
+            .lt('created_at', todayEnd)
         ]);
 
         const appointmentsToday = appointmentsRes.count || 0;
@@ -67,6 +72,9 @@ export default function Dashboard() {
               : (services?.price ?? 0);
             return sum + (apt.status === 'completed' ? price : 0);
           }, 0);
+        }
+        if (transactionsRes.data) {
+          totalRevenueToday += transactionsRes.data.reduce((sum, t) => sum + Number(t.total_amount ?? 0), 0);
         }
 
         const { data: appointmentsByClient } = await supabase
@@ -133,7 +141,7 @@ export default function Dashboard() {
                 title="Total Revenue (Today)"
                 value={`${metrics.totalRevenueToday.toFixed(2)} DH`}
                 icon={DollarSign}
-                trend={{ value: 'From completed appointments', isPositive: true }}
+                trend={{ value: 'Appointments + POS sales', isPositive: true }}
                 iconColor="text-green-400"
                 iconBgColor="bg-green-500/20"
                 onClick={() => setKpiDetailType('revenue')}
