@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase, type Staff, type AppointmentListItem } from '../lib/supabase';
+import { useSettings } from '../lib/SettingsContext';
 
 type KPIType = 'revenue' | 'appointments' | 'clients' | 'staff';
 
@@ -21,6 +22,7 @@ function getServicePrice(services: unknown): number {
 }
 
 export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<
     | { type: 'revenue'; items: { client_name: string; service: string; price: number }[]; total: number }
@@ -30,7 +32,7 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
   | null>(null);
 
   const titles: Record<KPIType, string> = {
-    revenue: 'Revenue (Today) - Completed Appointments',
+    revenue: 'Revenue (Today) – Appointments + POS',
     appointments: 'Appointments (Today)',
     clients: 'New Clients (This Week)',
     staff: 'Staff',
@@ -47,19 +49,39 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
 
       switch (type) {
         case 'revenue': {
-          const { data: apts } = await supabase
-            .from('appointments')
-            .select('client_name, status, services:service_id(name, price)')
-            .eq('status', 'completed')
-            .gte('date_time', todayStart)
-            .lt('date_time', todayEnd);
-          const items = (apts || [])
+          const [aptsRes, txRes] = await Promise.all([
+            supabase
+              .from('appointments')
+              .select('client_name, status, services:service_id(name, price)')
+              .eq('status', 'completed')
+              .gte('date_time', todayStart)
+              .lt('date_time', todayEnd),
+            supabase
+              .from('transactions')
+              .select('total_amount, items_json')
+              .gte('created_at', todayStart)
+              .lt('created_at', todayEnd)
+              .order('created_at', { ascending: true }),
+          ]);
+          const apts = aptsRes.data || [];
+          const txs = txRes.data || [];
+          const appointmentItems = apts
             .map((a) => ({
               client_name: a.client_name,
               service: getServiceName(a.services as AppointmentListItem['services']),
               price: getServicePrice(a.services),
             }))
             .filter((i) => i.price > 0);
+          const transactionItems = txs.map((t) => {
+            const amount = Number(t.total_amount ?? 0);
+            const items = Array.isArray(t.items_json) ? t.items_json : [];
+            const first = items[0] as { name?: string } | undefined;
+            const label = items.length > 1
+              ? `${first?.name ?? 'POS'} +${items.length - 1} more`
+              : (first?.name ?? 'POS sale');
+            return { client_name: 'Walk-in', service: label, price: amount };
+          });
+          const items = [...appointmentItems, ...transactionItems];
           const total = items.reduce((s, i) => s + i.price, 0);
           setData({ type: 'revenue', items, total });
           break;
@@ -116,7 +138,7 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
           ) : data?.type === 'revenue' ? (
             <div className="space-y-3">
               {data.items.length === 0 ? (
-                <p className="text-gray-400">No completed appointments today</p>
+                <p className="text-gray-400">No revenue today (completed appointments or POS sales)</p>
               ) : (
                 <>
                   {data.items.map((item, i) => (
@@ -125,12 +147,12 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
                         <span className="text-white font-medium">{item.client_name}</span>
                         <span className="text-gray-400 text-sm ml-2">— {item.service}</span>
                       </div>
-                      <span className="text-green-400 font-medium">{item.price} DH</span>
+                      <span className="text-green-400 font-medium">{item.price} {settings.currency}</span>
                     </div>
                   ))}
                   <div className="flex justify-between pt-4 font-bold text-white border-t border-gray-600">
                     <span>Total</span>
-                    <span className="text-green-400">{data.total.toFixed(2)} DH</span>
+                    <span className="text-green-400">{data.total.toFixed(2)} {settings.currency}</span>
                   </div>
                 </>
               )}
