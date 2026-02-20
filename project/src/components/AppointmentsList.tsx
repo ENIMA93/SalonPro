@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, Pencil, XCircle } from 'lucide-react';
 import { supabase, type AppointmentListItem } from '../lib/supabase';
+import type { EditingAppointment } from './BookingModal';
 
 const statusColors = {
   completed: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -21,12 +22,16 @@ function getServiceName(services: AppointmentListItem['services']): string {
   return Array.isArray(services) ? services[0]?.name ?? 'Service' : services.name ?? 'Service';
 }
 
+type AppointmentRow = AppointmentListItem & { service_id?: string; staff_id?: string };
+
 interface AppointmentsListProps {
   refreshKey?: number;
+  onEdit?: (apt: EditingAppointment) => void;
+  onCancel?: (apt: AppointmentRow) => void;
 }
 
-export default function AppointmentsList({ refreshKey = 0 }: AppointmentsListProps) {
-  const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
+export default function AppointmentsList({ refreshKey = 0, onEdit, onCancel }: AppointmentsListProps) {
+  const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +45,8 @@ export default function AppointmentsList({ refreshKey = 0 }: AppointmentsListPro
             client_name,
             date_time,
             status,
+            service_id,
+            staff_id,
             services:service_id(name),
             staff:staff_id(name)
           `)
@@ -48,7 +55,7 @@ export default function AppointmentsList({ refreshKey = 0 }: AppointmentsListPro
 
         if (fetchError) throw fetchError;
 
-        setAppointments((data || []) as AppointmentListItem[]);
+        setAppointments((data || []) as AppointmentRow[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch appointments');
       } finally {
@@ -108,7 +115,7 @@ export default function AppointmentsList({ refreshKey = 0 }: AppointmentsListPro
                 </div>
               </div>
 
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Clock className="w-4 h-4" />
                   <span className="text-sm font-medium">{formatTime(appointment.date_time)}</span>
@@ -120,6 +127,33 @@ export default function AppointmentsList({ refreshKey = 0 }: AppointmentsListPro
                 >
                   {statusLabels[appointment.status]}
                 </span>
+                {appointment.status !== 'cancelled' && onEdit && onCancel && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onEdit({
+                        id: appointment.id,
+                        client_name: appointment.client_name,
+                        service_id: appointment.service_id ?? '',
+                        staff_id: appointment.staff_id ?? '',
+                        date_time: appointment.date_time,
+                        status: appointment.status,
+                      })}
+                      className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-600 transition-colors"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onCancel(appointment)}
+                      className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      aria-label="Cancel"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

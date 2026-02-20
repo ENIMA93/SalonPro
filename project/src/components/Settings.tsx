@@ -1,6 +1,26 @@
+import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
+import { useSettings } from '../lib/SettingsContext';
 
 export default function Settings() {
+  const { settings, setSettings } = useSettings();
+  const [salonName, setSalonName] = useState(settings.salonName);
+  const [currency, setCurrency] = useState(settings.currency);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setSalonName(settings.salonName);
+    setCurrency(settings.currency);
+  }, [settings.salonName, settings.currency]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const next = { salonName: salonName.trim() || 'SalonPro', currency: currency.trim() || 'DH' };
+    setSettings(next);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   return (
     <div className="flex-1 bg-gray-900 min-h-screen">
       <div className="p-8">
@@ -14,19 +34,40 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-white font-semibold">General</h3>
-              <p className="text-gray-400 text-sm">Currency: DH (Morocco)</p>
+              <p className="text-gray-400 text-sm">Edit and save to update across the app.</p>
             </div>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between py-3 border-b border-gray-700">
-              <span className="text-gray-400">Currency</span>
-              <span className="text-white font-medium">DH - Moroccan Dirham</span>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Salon name</label>
+              <input
+                type="text"
+                value={salonName}
+                onChange={(e) => setSalonName(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+                placeholder="SalonPro"
+              />
             </div>
-            <div className="flex justify-between py-3 border-b border-gray-700">
-              <span className="text-gray-400">Salon name</span>
-              <span className="text-white font-medium">SalonPro</span>
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Currency</label>
+              <input
+                type="text"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+                placeholder="DH"
+              />
             </div>
-          </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors font-medium"
+              >
+                Save
+              </button>
+              {saved && <span className="text-green-400 text-sm">Saved.</span>}
+            </div>
+          </form>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
   Receipt,
   Settings
 } from 'lucide-react';
+import { useSettings } from '../lib/SettingsContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -28,12 +29,13 @@ const menuItems = [
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { settings } = useSettings();
   return (
     <div className="w-64 bg-gray-900 min-h-screen p-6 flex flex-col">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-white">
           <Scissors className="w-8 h-8 text-purple-400" />
-          <h1 className="text-2xl font-bold">SalonPro</h1>
+          <h1 className="text-2xl font-bold">{settings.salonName}</h1>
         </div>
       </div>
 

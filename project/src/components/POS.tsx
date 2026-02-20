@@ -54,25 +54,28 @@ export default function POS() {
   const handlePay = async () => {
     if (cart.length === 0) return;
     setPaying(true);
-    const itemsJson = cart.map(({ serviceId, name, price, quantity }) => ({
-      service_id: serviceId,
-      name,
-      price,
-      quantity,
-    }));
-    const { error } = await supabase.from('transactions').insert({
-      total_amount: total,
-      items_json: itemsJson,
-    });
-    setPaying(false);
-    if (error) {
-      setToast(`Error: ${error.message}`);
-      setTimeout(() => setToast(null), 4000);
-      return;
+    try {
+      const itemsJson = cart.map(({ serviceId, name, price, quantity }) => ({
+        service_id: serviceId,
+        name,
+        price,
+        quantity,
+      }));
+      const { error } = await supabase.from('transactions').insert({
+        total_amount: total,
+        items_json: itemsJson,
+      });
+      if (error) {
+        setToast(`Error: ${error.message}`);
+        setTimeout(() => setToast(null), 4000);
+        return;
+      }
+      setCart([]);
+      setToast('Payment successful!');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setPaying(false);
     }
-    setCart([]);
-    setToast('Payment successful!');
-    setTimeout(() => setToast(null), 3000);
   };
 
   return (
