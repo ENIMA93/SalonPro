@@ -50,8 +50,7 @@ export default function AppointmentsList({ refreshKey = 0, onEdit, onCancel }: A
             services:service_id(name),
             staff:staff_id(name)
           `)
-          .order('date_time', { ascending: true })
-          .limit(6);
+          .order('date_time', { ascending: true });
 
         if (fetchError) throw fetchError;
 
@@ -73,6 +72,72 @@ export default function AppointmentsList({ refreshKey = 0, onEdit, onCancel }: A
       hour12: true
     });
   };
+
+  const statusOrder = ['scheduled', 'in-progress', 'completed', 'cancelled'] as const;
+  const byStatus = statusOrder.map((status) => ({
+    status,
+    appointments: appointments.filter((a) => a.status === status),
+  }));
+
+  const renderAppointment = (appointment: AppointmentRow) => (
+    <div
+      key={appointment.id}
+      className="p-6 hover:bg-gray-700/50 transition-colors flex items-center justify-between"
+    >
+      <div className="flex items-center gap-4 flex-1">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+          {appointment.client_name.charAt(0)}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-white font-semibold">{appointment.client_name}</h3>
+          <p className="text-gray-400 text-sm">
+            {getServiceName(appointment.services)}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 text-gray-400">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">{formatTime(appointment.date_time)}</span>
+        </div>
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium border ${
+            statusColors[appointment.status]
+          }`}
+        >
+          {statusLabels[appointment.status]}
+        </span>
+        {appointment.status !== 'cancelled' && onEdit && onCancel && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit({
+                id: appointment.id,
+                client_name: appointment.client_name,
+                service_id: appointment.service_id ?? '',
+                staff_id: appointment.staff_id ?? '',
+                date_time: appointment.date_time,
+                status: appointment.status,
+              })}
+              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-600 transition-colors"
+              aria-label="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onCancel(appointment)}
+              className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              aria-label="Cancel"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700">
@@ -98,65 +163,19 @@ export default function AppointmentsList({ refreshKey = 0, onEdit, onCancel }: A
         </div>
       ) : (
         <div className="divide-y divide-gray-700">
-          {appointments.map((appointment) => (
-            <div
-              key={appointment.id}
-              className="p-6 hover:bg-gray-700/50 transition-colors flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4 flex-1">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
-                  {appointment.client_name.charAt(0)}
+          {byStatus.map(({ status, appointments: list }) =>
+            list.length > 0 ? (
+              <div key={status}>
+                <div className="px-6 py-3 bg-gray-700/40 border-b border-gray-700 flex items-center gap-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColors[status]}`}>
+                    {statusLabels[status]}
+                  </span>
+                  <span className="text-gray-400 text-sm">({list.length})</span>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold">{appointment.client_name}</h3>
-                  <p className="text-gray-400 text-sm">
-                    {getServiceName(appointment.services)}
-                  </p>
-                </div>
+                {list.map(renderAppointment)}
               </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-sm font-medium">{formatTime(appointment.date_time)}</span>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                    statusColors[appointment.status]
-                  }`}
-                >
-                  {statusLabels[appointment.status]}
-                </span>
-                {appointment.status !== 'cancelled' && onEdit && onCancel && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onEdit({
-                        id: appointment.id,
-                        client_name: appointment.client_name,
-                        service_id: appointment.service_id ?? '',
-                        staff_id: appointment.staff_id ?? '',
-                        date_time: appointment.date_time,
-                        status: appointment.status,
-                      })}
-                      className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-600 transition-colors"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onCancel(appointment)}
-                      className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      aria-label="Cancel"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ) : null
+          )}
         </div>
       )}
     </div>
