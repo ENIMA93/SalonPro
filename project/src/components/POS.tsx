@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ShoppingCart, Loader2, Plus, Minus, Trash2, CreditCard, Check } from 'lucide-react';
-import { supabase, type Service } from '../lib/supabase';
+import { supabase, type Service, type Staff } from '../lib/supabase';
 
 type CartItem = {
   serviceId: string;
@@ -11,18 +11,26 @@ type CartItem = {
 
 export default function POS() {
   const [services, setServices] = useState<Service[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [clientName, setClientName] = useState('');
+  const [staffId, setStaffId] = useState('');
   const [paying, setPaying] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchServices = async () => {
-      const { data } = await supabase.from('services').select('*').order('name');
-      setServices(data || []);
+    const fetch = async () => {
+      const [svcRes, staffRes] = await Promise.all([
+        supabase.from('services').select('*').order('name'),
+        supabase.from('staff').select('*').eq('is_active', true).order('name'),
+      ]);
+      setServices(svcRes.data || []);
+      setStaff(staffRes.data || []);
+      setStaffId(staffRes.data?.[0]?.id ?? '');
       setLoading(false);
     };
-    fetchServices();
+    fetch();
   }, []);
 
   const addToCart = (service: Service) => {
@@ -64,6 +72,8 @@ export default function POS() {
       const { error } = await supabase.from('transactions').insert({
         total_amount: total,
         items_json: itemsJson,
+        client_name: clientName.trim() || null,
+        staff_id: staffId || null,
       });
       if (error) {
         setToast(`Error: ${error.message}`);
@@ -71,6 +81,7 @@ export default function POS() {
         return;
       }
       setCart([]);
+      setClientName('');
       setToast('Payment successful!');
       setTimeout(() => setToast(null), 3000);
     } finally {
@@ -122,6 +133,30 @@ export default function POS() {
           <div className="p-4 border-b border-gray-700 flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-purple-400" />
             <h2 className="font-semibold text-white">Cart</h2>
+          </div>
+          <div className="p-4 border-b border-gray-700 space-y-3">
+            <div>
+              <label className="block text-gray-400 text-xs font-medium mb-1">Client (optional)</label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="Walk-in if empty"
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-xs font-medium mb-1">Staff</label>
+              <select
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
+              >
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex-1 overflow-auto p-4 min-h-0">
             {cart.length === 0 ? (

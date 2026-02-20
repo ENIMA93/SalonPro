@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase, type Service, type Staff } from '../lib/supabase';
+import CompletionSaleModal from './CompletionSaleModal';
 
 export type EditingAppointment = {
   id: string;
@@ -32,6 +33,8 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
   const [staffId, setStaffId] = useState('');
   const [dateTime, setDateTime] = useState('');
   const [status, setStatus] = useState('scheduled');
+  const [showProductPrompt, setShowProductPrompt] = useState(false);
+  const [showSaleModal, setShowSaleModal] = useState(false);
 
   const isEdit = !!editingAppointment;
 
@@ -81,10 +84,36 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     }
   }, [isOpen, editingAppointment]);
 
+  const doUpdateAppointment = async (): Promise<boolean> => {
+    const payload = {
+      client_name: clientName.trim(),
+      service_id: serviceId,
+      staff_id: staffId,
+      date_time: new Date(dateTime).toISOString(),
+      status: isEdit ? status : 'scheduled',
+    };
+    if (isEdit && editingAppointment) {
+      const { error: updateError } = await supabase
+        .from('appointments')
+        .update(payload)
+        .eq('id', editingAppointment.id);
+      if (updateError) {
+        setError(updateError.message);
+        return false;
+      }
+    }
+    onSuccess();
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !serviceId || !staffId || !dateTime) {
       setError('Please fill all fields');
+      return;
+    }
+    if (isEdit && editingAppointment && status === 'completed' && editingAppointment.status !== 'completed') {
+      setShowProductPrompt(true);
       return;
     }
     setSubmitting(true);
@@ -118,10 +147,66 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     onClose();
   };
 
+  const handleProductPromptNo = async () => {
+    setShowProductPrompt(false);
+    setSubmitting(true);
+    setError(null);
+    const ok = await doUpdateAppointment();
+    setSubmitting(false);
+    if (ok) onClose();
+  };
+
+  const handleProductPromptYes = () => {
+    setShowProductPrompt(false);
+    setShowSaleModal(true);
+  };
+
+  const handleSaleModalSuccess = async () => {
+    setSubmitting(true);
+    setError(null);
+    const ok = await doUpdateAppointment();
+    setShowSaleModal(false);
+    setSubmitting(false);
+    if (ok) onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <>
+      <CompletionSaleModal
+        isOpen={showSaleModal}
+        onClose={() => setShowSaleModal(false)}
+        onSuccess={handleSaleModalSuccess}
+        clientName={clientName.trim()}
+        defaultStaffId={staffId}
+      />
+      {showProductPrompt && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowProductPrompt(false)} />
+          <div className="relative bg-gray-800 rounded-xl border border-gray-700 w-full max-w-sm mx-4 p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-white mb-2">Complete appointment</h3>
+            <p className="text-gray-400 text-sm mb-6">Did the client purchase any product?</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleProductPromptNo}
+                className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 font-medium"
+              >
+                No, skip
+              </button>
+              <button
+                type="button"
+                onClick={handleProductPromptYes}
+                className="flex-1 py-2.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 font-medium"
+              >
+                Yes, add from POS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md mx-4 p-6 shadow-xl">
         <div className="flex justify-between items-center mb-6">
@@ -227,5 +312,6 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
         )}
       </div>
     </div>
+    </>
   );
 }
