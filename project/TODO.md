@@ -16,7 +16,7 @@ Based on the completion plan.
 - [x] Editable Settings (salon name, currency)
 
 ## Phase 5 — Optional
-- [ ] Transactions – optional client name
-- [ ] Clients table and CRUD
+- [x] Transactions – optional client name
+- [x] Clients table and CRUD
 - [ ] URL routing (React Router)
 - [ ] Auth (Supabase Auth)

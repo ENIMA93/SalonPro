@@ -199,6 +199,7 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     const ok = await doUpdateAppointment();
     if (ok) {
       setShowSaleModal(false);
+      setSubmitting(false);
       setShowContactModal(true);
       return;
     }

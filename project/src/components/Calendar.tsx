@@ -42,8 +42,16 @@ export default function Calendar() {
         .order('date_time', { ascending: true }),
       supabase.from('clients').select('name, email'),
     ]);
-    setAppointments((aptRes.data || []) as CalendarAppointment[]);
-    setClientsForSearch((clientsRes.data || []).map((c) => ({ name: c.name, email: c.email ?? null })));
+    if (aptRes.error) {
+      setAppointments([]);
+    } else {
+      setAppointments((aptRes.data || []) as CalendarAppointment[]);
+    }
+    if (clientsRes.error) {
+      setClientsForSearch([]);
+    } else {
+      setClientsForSearch((clientsRes.data || []).map((c) => ({ name: c.name, email: c.email ?? null })));
+    }
   };
 
   useEffect(() => {

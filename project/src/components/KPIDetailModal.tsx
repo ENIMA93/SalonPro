@@ -109,8 +109,8 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
               .gte('created_at', weekStart)
               .lt('created_at', todayEnd),
           ]);
-          const fromClients = (clientsRes.data || []).map((c) => c.name?.trim()).filter(Boolean);
-          const fromApts = (aptsRes.data || []).map((a) => a.client_name?.trim()).filter(Boolean);
+          const fromClients = clientsRes.error ? [] : (clientsRes.data || []).map((c) => c.name?.trim()).filter(Boolean);
+          const fromApts = aptsRes.error ? [] : (aptsRes.data || []).map((a) => a.client_name?.trim()).filter(Boolean);
           const names = [...new Set([...fromClients, ...fromApts])].sort();
           setData({ type: 'clients', items: names });
           break;

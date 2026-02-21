@@ -19,6 +19,14 @@ export type Staff = {
   created_at: string;
 };
 
+export type Client = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+};
+
 export type Service = {
   id: string;
   name: string;

@@ -57,6 +57,7 @@ export default function AppointmentsList({ refreshKey = 0, searchQuery = '', onE
           supabase.from('clients').select('name, email'),
         ]);
         if (aptRes.error) throw aptRes.error;
+        if (clientsRes.error) throw clientsRes.error;
         setAppointments((aptRes.data || []) as AppointmentRow[]);
         setClientsForSearch((clientsRes.data || []).map((c) => ({ name: c.name, email: c.email ?? null })));
       } catch (err) {

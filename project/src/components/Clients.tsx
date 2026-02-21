@@ -136,7 +136,7 @@ export default function Clients({ onSelectClient }: ClientsProps) {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => onSelectClient?.(c)}
+                    onClick={(e) => { e.stopPropagation(); onSelectClient?.(c); }}
                     className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-gray-700 transition-colors"
                     title="View history"
                     aria-label="View history"
