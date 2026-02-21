@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase, type Service, type Staff } from '../lib/supabase';
 import CompletionSaleModal from './CompletionSaleModal';
+import ClientNameInput from './ClientNameInput';
 
 export type EditingAppointment = {
   id: string;
@@ -165,9 +166,12 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     setSubmitting(true);
     setError(null);
     const ok = await doUpdateAppointment();
+    if (ok) {
+      onClose();
+      return;
+    }
     setShowSaleModal(false);
     setSubmitting(false);
-    if (ok) onClose();
   };
 
   if (!isOpen) return null;
@@ -230,12 +234,11 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
             )}
             <div>
               <label className="block text-gray-400 text-sm font-medium mb-1">Client name</label>
-              <input
-                type="text"
+              <ClientNameInput
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+                onChange={setClientName}
                 placeholder="Enter client name"
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
               />
             </div>
             <div>
