@@ -25,9 +25,9 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
   const { settings } = useSettings();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<
-    | { type: 'revenue'; items: { client_name: string; service: string; price: number }[]; total: number }
+    | { type: 'revenue'; items: { client_name: string; service: string; price: number; sortDate: string }[]; total: number }
     | { type: 'appointments'; items: AppointmentListItem[] }
-    | { type: 'clients'; items: string[] }
+    | { type: 'clients'; items: { name: string; sortDate: string }[] }
     | { type: 'staff'; items: Staff[] }
   | null>(null);
 
@@ -52,16 +52,15 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
           const [aptsRes, txRes] = await Promise.all([
             supabase
               .from('appointments')
-              .select('client_name, status, services:service_id(name, price)')
+              .select('client_name, date_time, status, services:service_id(name, price)')
               .eq('status', 'completed')
               .gte('date_time', todayStart)
               .lt('date_time', todayEnd),
             supabase
               .from('transactions')
-              .select('total_amount, items_json')
+              .select('total_amount, items_json, created_at')
               .gte('created_at', todayStart)
-              .lt('created_at', todayEnd)
-              .order('created_at', { ascending: true }),
+              .lt('created_at', todayEnd),
           ]);
           const apts = aptsRes.data || [];
           const txs = txRes.data || [];
@@ -70,18 +69,20 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
               client_name: a.client_name,
               service: getServiceName(a.services as AppointmentListItem['services']),
               price: getServicePrice(a.services),
+              sortDate: (a as { date_time?: string }).date_time ?? '',
             }))
             .filter((i) => i.price > 0);
-          const transactionItems = txs.map((t) => {
+          const transactionItems = (txs as { total_amount?: number; items_json?: unknown; created_at?: string }[]).map((t) => {
             const amount = Number(t.total_amount ?? 0);
             const items = Array.isArray(t.items_json) ? t.items_json : [];
             const first = items[0] as { name?: string } | undefined;
             const label = items.length > 1
               ? `${first?.name ?? 'POS'} +${items.length - 1} more`
               : (first?.name ?? 'POS sale');
-            return { client_name: 'Walk-in', service: label, price: amount };
+            return { client_name: 'Walk-in', service: label, price: amount, sortDate: t.created_at ?? '' };
           });
-          const items = [...appointmentItems, ...transactionItems];
+          const items = [...appointmentItems, ...transactionItems]
+            .sort((a, b) => (a.sortDate > b.sortDate ? -1 : a.sortDate < b.sortDate ? 1 : 0));
           const total = items.reduce((s, i) => s + i.price, 0);
           setData({ type: 'revenue', items, total });
           break;
@@ -92,7 +93,7 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
             .select('id, client_name, date_time, status, services:service_id(name), staff:staff_id(name)')
             .gte('date_time', todayStart)
             .lt('date_time', todayEnd)
-            .order('date_time', { ascending: true });
+            .order('date_time', { ascending: false });
           setData({ type: 'appointments', items: (apts || []) as AppointmentListItem[] });
           break;
         }
@@ -100,26 +101,40 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
           const [clientsRes, aptsRes] = await Promise.all([
             supabase
               .from('clients')
-              .select('name')
+              .select('name, created_at')
               .gte('created_at', weekStart)
-              .lt('created_at', todayEnd),
+              .lt('created_at', todayEnd)
+              .order('created_at', { ascending: false }),
             supabase
               .from('appointments')
-              .select('client_name')
+              .select('client_name, created_at')
               .gte('created_at', weekStart)
-              .lt('created_at', todayEnd),
+              .lt('created_at', todayEnd)
+              .order('created_at', { ascending: false }),
           ]);
-          const fromClients = clientsRes.error ? [] : (clientsRes.data || []).map((c) => c.name?.trim()).filter(Boolean);
-          const fromApts = aptsRes.error ? [] : (aptsRes.data || []).map((a) => a.client_name?.trim()).filter(Boolean);
-          const names = [...new Set([...fromClients, ...fromApts])].sort();
-          setData({ type: 'clients', items: names });
+          const fromClients = clientsRes.error ? [] : (clientsRes.data || []).map((c) => ({
+            name: (c as { name?: string; created_at?: string }).name?.trim() ?? '',
+            sortDate: (c as { created_at?: string }).created_at ?? '',
+          })).filter((x) => x.name);
+          const fromApts = aptsRes.error ? [] : (aptsRes.data || []).map((a) => ({
+            name: (a as { client_name?: string }).client_name?.trim() ?? '',
+            sortDate: (a as { created_at?: string }).created_at ?? '',
+          })).filter((x) => x.name);
+          const byName = new Map<string, string>();
+          [...fromClients, ...fromApts].forEach(({ name, sortDate }) => {
+            if (!byName.has(name) || sortDate > (byName.get(name) ?? '')) byName.set(name, sortDate);
+          });
+          const items = Array.from(byName.entries())
+            .map(([name, sortDate]) => ({ name, sortDate }))
+            .sort((a, b) => (a.sortDate > b.sortDate ? -1 : a.sortDate < b.sortDate ? 1 : 0));
+          setData({ type: 'clients', items });
           break;
         }
         case 'staff': {
           const { data: stf } = await supabase
             .from('staff')
             .select('*')
-            .order('name');
+            .order('created_at', { ascending: false });
           setData({ type: 'staff', items: stf || [] });
           break;
         }
@@ -139,7 +154,8 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="overflow-y-auto min-h-0 max-h-[55vh] pr-2 [scrollbar-width:auto] [scrollbar-color:rgb(156_163_175)_rgb(55_65_81)] [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-700 [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-300">
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
@@ -197,12 +213,12 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
               {data.items.length === 0 ? (
                 <p className="text-gray-400">No new clients this week</p>
               ) : (
-                data.items.map((name, i) => (
+                data.items.map((item, i) => (
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-700">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
-                      {name.charAt(0)}
+                      {item.name.charAt(0)}
                     </div>
-                    <span className="text-white">{name}</span>
+                    <span className="text-white">{item.name}</span>
                   </div>
                 ))
               )}
@@ -227,6 +243,7 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
               ))}
             </div>
           ) : null}
+          </div>
         </div>
       </div>
     </div>
