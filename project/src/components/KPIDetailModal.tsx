@@ -97,13 +97,22 @@ export default function KPIDetailModal({ type, onClose }: KPIDetailModalProps) {
           break;
         }
         case 'clients': {
-          const { data: apts } = await supabase
-            .from('appointments')
-            .select('client_name')
-            .gte('created_at', weekStart)
-            .lt('created_at', todayEnd);
-          const unique = [...new Set((apts || []).map((a) => a.client_name).filter(Boolean))].sort();
-          setData({ type: 'clients', items: unique });
+          const [clientsRes, aptsRes] = await Promise.all([
+            supabase
+              .from('clients')
+              .select('name')
+              .gte('created_at', weekStart)
+              .lt('created_at', todayEnd),
+            supabase
+              .from('appointments')
+              .select('client_name')
+              .gte('created_at', weekStart)
+              .lt('created_at', todayEnd),
+          ]);
+          const fromClients = (clientsRes.data || []).map((c) => c.name?.trim()).filter(Boolean);
+          const fromApts = (aptsRes.data || []).map((a) => a.client_name?.trim()).filter(Boolean);
+          const names = [...new Set([...fromClients, ...fromApts])].sort();
+          setData({ type: 'clients', items: names });
           break;
         }
         case 'staff': {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, Calendar, UserPlus, Users, Plus } from 'lucide-react';
+import { DollarSign, Calendar, UserPlus, Users, Plus, Search } from 'lucide-react';
 import MetricCard from './MetricCard';
 import AppointmentsList from './AppointmentsList';
 import BookingModal, { type EditingAppointment } from './BookingModal';
@@ -31,6 +31,7 @@ export default function Dashboard() {
     totalStaff: 0
   });
   const [loading, setLoading] = useState(true);
+  const [appointmentSearch, setAppointmentSearch] = useState('');
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -80,13 +81,21 @@ export default function Dashboard() {
           totalRevenueToday += transactionsRes.data.reduce((sum, t) => sum + Number(t.total_amount ?? 0), 0);
         }
 
-        const { data: appointmentsByClient } = await supabase
-          .from('appointments')
-          .select('client_name')
-          .gte('created_at', weekStart)
-          .lt('created_at', todayEnd);
-
-        const newClientsThisWeek = new Set(appointmentsByClient?.map(a => a.client_name) || []).size;
+        const [clientsRes, aptsRes] = await Promise.all([
+          supabase
+            .from('clients')
+            .select('name')
+            .gte('created_at', weekStart)
+            .lt('created_at', todayEnd),
+          supabase
+            .from('appointments')
+            .select('client_name')
+            .gte('created_at', weekStart)
+            .lt('created_at', todayEnd),
+        ]);
+        const fromClients = (clientsRes.data || []).map((c) => c.name?.trim()).filter(Boolean);
+        const fromApts = (aptsRes.data || []).map((a) => a.client_name?.trim()).filter(Boolean);
+        const newClientsThisWeek = new Set([...fromClients, ...fromApts]).size;
 
         setMetrics({
           totalRevenueToday,
@@ -178,8 +187,22 @@ export default function Dashboard() {
               />
             </div>
 
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  value={appointmentSearch}
+                  onChange={(e) => setAppointmentSearch(e.target.value)}
+                  placeholder="Search appointments by client name or email..."
+                  className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
             <AppointmentsList
               refreshKey={refreshKey}
+              searchQuery={appointmentSearch}
               onEdit={(apt) => { setEditingAppointment(apt); setBookingModalOpen(true); }}
               onCancel={async (apt) => {
                 if (!window.confirm(`Cancel appointment with ${apt.client_name}?`)) return;

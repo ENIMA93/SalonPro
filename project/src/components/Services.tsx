@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Scissors, Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Scissors, Loader2, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { supabase, type Service } from '../lib/supabase';
 import ServiceModal from './ServiceModal';
 
@@ -8,6 +8,7 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [search, setSearch] = useState('');
 
   const fetchServices = async () => {
     const { data } = await supabase.from('services').select('*').order('name');
@@ -71,13 +72,30 @@ export default function Services() {
           </button>
         </div>
 
+        {!loading && services.length > 0 && (
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search services by name..."
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((s) => (
+            {services
+              .filter((s) => !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase()))
+              .map((s) => (
               <div
                 key={s.id}
                 className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all flex items-center justify-between gap-4"

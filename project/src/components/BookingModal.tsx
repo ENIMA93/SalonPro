@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { supabase, type Service, type Staff } from '../lib/supabase';
+import { supabase, type Service, type Staff, type Client } from '../lib/supabase';
 import CompletionSaleModal from './CompletionSaleModal';
 import ClientNameInput from './ClientNameInput';
+import ClientContactModal from './ClientContactModal';
+import ExistingClientNotice from './ExistingClientNotice';
 
 export type EditingAppointment = {
   id: string;
@@ -36,6 +38,9 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
   const [status, setStatus] = useState('scheduled');
   const [showProductPrompt, setShowProductPrompt] = useState(false);
   const [showSaleModal, setShowSaleModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [existingClientInBooking, setExistingClientInBooking] = useState<Client | null>(null);
+  const [isSamePersonInBooking, setIsSamePersonInBooking] = useState(true);
 
   const isEdit = !!editingAppointment;
 
@@ -84,6 +89,31 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
       fetch();
     }
   }, [isOpen, editingAppointment]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setExistingClientInBooking(null);
+      setIsSamePersonInBooking(true);
+      return;
+    }
+    const name = clientName.trim();
+    if (!name || name.length < 2) {
+      setExistingClientInBooking(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('clients')
+      .select('id, name, phone, email, created_at')
+      .eq('name', name)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setExistingClientInBooking(data as Client);
+        else if (!cancelled) setExistingClientInBooking(null);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, clientName]);
 
   const doUpdateAppointment = async (): Promise<boolean> => {
     const payload = {
@@ -154,7 +184,8 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     setError(null);
     const ok = await doUpdateAppointment();
     setSubmitting(false);
-    if (ok) onClose();
+    if (ok) setShowContactModal(true);
+    else onClose();
   };
 
   const handleProductPromptYes = () => {
@@ -167,11 +198,17 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     setError(null);
     const ok = await doUpdateAppointment();
     if (ok) {
-      onClose();
+      setShowSaleModal(false);
+      setShowContactModal(true);
       return;
     }
     setShowSaleModal(false);
     setSubmitting(false);
+  };
+
+  const handleContactModalClose = () => {
+    setShowContactModal(false);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -184,6 +221,12 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
         onSuccess={handleSaleModalSuccess}
         clientName={clientName.trim()}
         defaultStaffId={staffId}
+      />
+      <ClientContactModal
+        isOpen={showContactModal}
+        onClose={handleContactModalClose}
+        clientName={clientName.trim()}
+        onSaved={() => onSuccess()}
       />
       {showProductPrompt && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center">
@@ -240,6 +283,14 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
                 placeholder="Enter client name"
                 className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
               />
+              {existingClientInBooking && (
+                <ExistingClientNotice
+                  existingClient={existingClientInBooking}
+                  isSamePerson={isSamePersonInBooking}
+                  onSamePersonChange={setIsSamePersonInBooking}
+                  checkboxLabel="This is the same client we have in the system"
+                />
+              )}
             </div>
             <div>
               <label className="block text-gray-400 text-sm font-medium mb-1">Service</label>

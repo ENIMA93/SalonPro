@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Receipt, Printer, TrendingUp } from 'lucide-react';
+import { Loader2, Receipt, Printer, TrendingUp, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../lib/SettingsContext';
 
@@ -40,6 +40,7 @@ export default function Transactions() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [searchQuery, setSearchQuery] = useState('');
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [printTransaction, setPrintTransaction] = useState<TransactionRow | null>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
@@ -62,7 +63,23 @@ export default function Transactions() {
     fetchTransactions();
   }, []);
 
-  const sorted = [...transactions].sort((a, b) => {
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredTransactions = !searchLower
+    ? transactions
+    : transactions.filter((row) => {
+        const client = (row.client_name?.trim() || 'Walk-in').toLowerCase();
+        const staff = getStaffName(row).toLowerCase();
+        const dateStr = formatTableDate(row.created_at).toLowerCase();
+        const amountStr = String(Number(row.total_amount)).toLowerCase();
+        return (
+          client.includes(searchLower) ||
+          staff.includes(searchLower) ||
+          dateStr.includes(searchLower) ||
+          amountStr.includes(searchLower)
+        );
+      });
+
+  const sorted = [...filteredTransactions].sort((a, b) => {
     const mul = sortDir === 'asc' ? 1 : -1;
     if (sortKey === 'created_at') return mul * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     return mul * (Number(a.total_amount) - Number(b.total_amount));
@@ -129,6 +146,21 @@ export default function Transactions() {
           </div>
         )}
 
+        {!loading && transactions.length > 0 && (
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by client, staff, date, or amount..."
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
@@ -158,7 +190,9 @@ export default function Transactions() {
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center text-gray-500 py-16">No transactions yet.</td>
+                    <td colSpan={7} className="text-center text-gray-500 py-16">
+                      {searchLower ? `No transactions match "${searchQuery.trim()}"` : 'No transactions yet.'}
+                    </td>
                   </tr>
                 ) : (
                   sorted.map((row) => (

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Clock, Pencil, XCircle, Plus } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Clock, Pencil, XCircle, Plus, Search } from 'lucide-react';
 import { supabase, type AppointmentListItem } from '../lib/supabase';
 import BookingModal, { type EditingAppointment } from './BookingModal';
 
@@ -31,13 +31,19 @@ export default function Calendar() {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<EditingAppointment | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [clientsForSearch, setClientsForSearch] = useState<{ name: string; email: string | null }[]>([]);
 
   const fetchAppointments = async () => {
-    const { data } = await supabase
-      .from('appointments')
-      .select('id, client_name, date_time, status, service_id, staff_id, services:service_id(name), staff:staff_id(name)')
-      .order('date_time', { ascending: true });
-    setAppointments((data || []) as CalendarAppointment[]);
+    const [aptRes, clientsRes] = await Promise.all([
+      supabase
+        .from('appointments')
+        .select('id, client_name, date_time, status, service_id, staff_id, services:service_id(name), staff:staff_id(name)')
+        .order('date_time', { ascending: true }),
+      supabase.from('clients').select('name, email'),
+    ]);
+    setAppointments((aptRes.data || []) as CalendarAppointment[]);
+    setClientsForSearch((clientsRes.data || []).map((c) => ({ name: c.name, email: c.email ?? null })));
   };
 
   useEffect(() => {
@@ -48,6 +54,16 @@ export default function Calendar() {
     };
     load();
   }, []);
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredAppointments = !searchLower
+    ? appointments
+    : appointments.filter((apt) => {
+        const nameMatch = (apt.client_name || '').toLowerCase().includes(searchLower);
+        if (nameMatch) return true;
+        const client = clientsForSearch.find((c) => c.name === apt.client_name);
+        return client?.email?.toLowerCase().includes(searchLower) ?? false;
+      });
 
   const handleCancel = async (apt: CalendarAppointment) => {
     if (!window.confirm(`Cancel this appointment with ${apt.client_name}?`)) return;
@@ -88,10 +104,10 @@ export default function Calendar() {
   const prevWeek = () => setViewDate((d) => new Date(d.getTime() - 7 * 24 * 60 * 60 * 1000));
   const nextWeek = () => setViewDate((d) => new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000));
 
-  const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
+  const HOURS = [...Array.from({ length: 16 }, (_, i) => i + 8), 0];
   const appointmentsByDayAndHour = useMemo(() => {
     const map: Record<string, Record<number, CalendarAppointment[]>> = {};
-    appointments.forEach((apt) => {
+    filteredAppointments.forEach((apt) => {
       const d = new Date(apt.date_time);
       const key = toDateKey(d);
       const h = d.getHours();
@@ -106,18 +122,18 @@ export default function Calendar() {
       });
     });
     return map;
-  }, [appointments]);
+  }, [filteredAppointments]);
 
   const appointmentsByDay = useMemo(() => {
     const map: Record<string, CalendarAppointment[]> = {};
-    appointments.forEach((apt) => {
+    filteredAppointments.forEach((apt) => {
       const key = getAppointmentDateKey(apt.date_time);
       if (!map[key]) map[key] = [];
       map[key].push(apt);
     });
     Object.keys(map).forEach((k) => map[k].sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime()));
     return map;
-  }, [appointments]);
+  }, [filteredAppointments]);
 
   const calendarDays = useMemo(() => {
     const year = viewDate.getFullYear();
@@ -213,6 +229,19 @@ export default function Calendar() {
           </div>
         </div>
 
+        <div className="mb-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search appointments by client name or email..."
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-24">
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
@@ -237,7 +266,7 @@ export default function Calendar() {
               {HOURS.map((hour) => (
                 <div key={hour} className="grid grid-cols-8 border-b border-gray-700 last:border-b-0 min-h-[52px]">
                   <div className="py-1.5 px-2 text-gray-500 text-xs font-medium border-r border-gray-700 shrink-0">
-                    {hour === 12 ? '12:00 PM' : hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`}
+                    {hour === 0 ? '12:00 AM' : hour === 12 ? '12:00 PM' : hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`}
                   </div>
                   {weekDays.map((d) => {
                     const key = toDateKey(d);
