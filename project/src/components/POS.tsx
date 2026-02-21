@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ShoppingCart, Loader2, Plus, Minus, Trash2, CreditCard, Check } from 'lucide-react';
-import { supabase, type Service, type Staff } from '../lib/supabase';
+import { supabase, type Service, type Staff, type Client } from '../lib/supabase';
+import ClientNameInput from './ClientNameInput';
+import ExistingClientNotice from './ExistingClientNotice';
 
 type CartItem = {
   serviceId: string;
@@ -18,6 +20,8 @@ export default function POS() {
   const [staffId, setStaffId] = useState('');
   const [paying, setPaying] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [existingClientInPOS, setExistingClientInPOS] = useState<Client | null>(null);
+  const [isSamePersonInPOS, setIsSamePersonInPOS] = useState(true);
 
   useEffect(() => {
     const fetch = async () => {
@@ -32,6 +36,26 @@ export default function POS() {
     };
     fetch();
   }, []);
+
+  useEffect(() => {
+    const name = clientName.trim();
+    if (!name || name.length < 2) {
+      setExistingClientInPOS(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('clients')
+      .select('id, name, phone, email, created_at')
+      .eq('name', name)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setExistingClientInPOS(data as Client);
+        else if (!cancelled) setExistingClientInPOS(null);
+      });
+    return () => { cancelled = true; };
+  }, [clientName]);
 
   const addToCart = (service: Service) => {
     setCart((prev) => {
@@ -137,13 +161,21 @@ export default function POS() {
           <div className="p-4 border-b border-gray-700 space-y-3">
             <div>
               <label className="block text-gray-400 text-xs font-medium mb-1">Client (optional)</label>
-              <input
-                type="text"
+              <ClientNameInput
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                onChange={setClientName}
                 placeholder="Walk-in if empty"
                 className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
               />
+              {existingClientInPOS && (
+                <ExistingClientNotice
+                  existingClient={existingClientInPOS}
+                  isSamePerson={isSamePersonInPOS}
+                  onSamePersonChange={setIsSamePersonInPOS}
+                  checkboxLabel="This is the same client we have in the system"
+                  compact
+                />
+              )}
             </div>
             <div>
               <label className="block text-gray-400 text-xs font-medium mb-1">Staff</label>

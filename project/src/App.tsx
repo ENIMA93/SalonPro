@@ -8,18 +8,29 @@ import Clients from './components/Clients';
 import Calendar from './components/Calendar';
 import POS from './components/POS';
 import Transactions from './pages/Transactions';
+import ClientHistory from './pages/ClientHistory';
 import Inventory from './components/Inventory';
 import Settings from './components/Settings';
+import type { Client } from './lib/supabase';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const renderContent = () => {
+    if (activeTab === 'client-history' && selectedClient) {
+      return (
+        <ClientHistory
+          client={selectedClient}
+          onBack={() => { setSelectedClient(null); setActiveTab('clients'); }}
+        />
+      );
+    }
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'services': return <Services />;
       case 'staff': return <Staff />;
-      case 'clients': return <Clients />;
+      case 'clients': return <Clients onSelectClient={(c) => { setSelectedClient(c); setActiveTab('client-history'); }} />;
       case 'calendar': return <Calendar />;
       case 'pos': return <POS />;
       case 'transactions': return <Transactions />;

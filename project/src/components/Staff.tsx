@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { supabase, type Staff as StaffType } from '../lib/supabase';
 import StaffModal from './StaffModal';
 
@@ -8,6 +8,7 @@ export default function Staff() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffType | null>(null);
+  const [search, setSearch] = useState('');
 
   const fetchStaff = async () => {
     const { data } = await supabase.from('staff').select('*').order('name');
@@ -71,13 +72,34 @@ export default function Staff() {
           </button>
         </div>
 
+        {!loading && staff.length > 0 && (
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search staff by name or role..."
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {staff.map((s) => (
+            {staff
+              .filter((s) => {
+                const q = search.trim().toLowerCase();
+                if (!q) return true;
+                return s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q);
+              })
+              .map((s) => (
               <div
                 key={s.id}
                 className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all flex items-center justify-between gap-4"
@@ -87,7 +109,10 @@ export default function Staff() {
                     {s.name.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-white font-semibold text-lg">{s.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white font-semibold text-lg">{s.name}</h3>
+                      <span className="text-gray-500 text-xs font-mono" title={s.id}>#{s.id.slice(0, 8)}</span>
+                    </div>
                     <p className="text-gray-400">{s.role}</p>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.is_active ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
                       {s.is_active ? 'Active' : 'Inactive'}

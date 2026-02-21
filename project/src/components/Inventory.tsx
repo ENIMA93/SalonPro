@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Package, Search } from 'lucide-react';
 import { supabase, type Inventory } from '../lib/supabase';
 import ProductModal from './ProductModal';
 
@@ -10,6 +10,7 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<Inventory | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const fetchProducts = async () => {
     setError(null);
@@ -91,6 +92,21 @@ export default function Inventory() {
           </div>
         )}
 
+        {!loading && products.length > 0 && (
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search inventory by product name..."
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
@@ -107,16 +123,25 @@ export default function Inventory() {
                 </tr>
               </thead>
               <tbody>
-                {products.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-16">
-                      <Package className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400">No products yet.</p>
-                      <p className="text-gray-500 text-sm mt-1">Click &quot;Add Product&quot; to get started.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((item) => (
+                {(() => {
+                  const q = search.trim().toLowerCase();
+                  const filtered = !q ? products : products.filter((p) => p.product_name.toLowerCase().includes(q));
+                  return filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center py-16">
+                        {q ? (
+                          <p className="text-gray-400">No products match &quot;{search.trim()}&quot;</p>
+                        ) : (
+                          <>
+                            <Package className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-400">No products yet.</p>
+                            <p className="text-gray-500 text-sm mt-1">Click &quot;Add Product&quot; to get started.</p>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                  filtered.map((item) => (
                     <tr
                       key={item.id}
                       className="border-b border-gray-700 last:border-0 hover:bg-gray-700/30 transition-colors"
@@ -151,7 +176,8 @@ export default function Inventory() {
                       </td>
                     </tr>
                   ))
-                )}
+                  );
+                })()}
               </tbody>
             </table>
           </div>
