@@ -92,20 +92,20 @@ export default function Services() {
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
             {services
               .filter((s) => !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase()))
               .map((s) => (
               <div
                 key={s.id}
-                className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all flex items-center justify-between gap-4"
+                className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all flex items-center justify-between gap-4 min-h-[100px]"
               >
-                <div className="flex items-start gap-4 min-w-0">
+                <div className="flex items-start gap-4 min-w-0 flex-1">
                   <div className="bg-purple-500/20 text-purple-400 p-3 rounded-lg shrink-0">
                     <Scissors className="w-6 h-6" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-semibold text-lg">{s.name}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-white font-semibold text-lg break-words">{s.name}</h3>
                     <p className="text-gray-400 text-sm mt-1">{s.duration_min} min • {s.gender_category}</p>
                     <p className="text-green-400 font-semibold mt-2">{Number(s.price)} DH</p>
                   </div>

@@ -54,7 +54,7 @@ export type AppointmentListItem = {
   client_name: string;
   date_time: string;
   status: Appointment['status'];
-  services?: { name: string } | { name: string }[];
+  services?: { name: string; duration_min?: number } | { name: string; duration_min?: number }[];
   staff?: { name: string } | { name: string }[];
 };
 

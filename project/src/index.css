@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Visible scrollbar for appointment columns (Chrome, Safari, Edge, Firefox) */
+.scrollbar-visible {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(107 114 128) rgb(55 65 81);
+}
+.scrollbar-visible::-webkit-scrollbar {
+  width: 10px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: rgb(55 65 81);
+  border-radius: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: rgb(107 114 128);
+  border-radius: 5px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: rgb(156 163 175);
+}
