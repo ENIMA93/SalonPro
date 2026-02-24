@@ -1,4 +1,6 @@
 import {
+  Home,
+  BarChart3,
   LayoutDashboard,
   CreditCard,
   Package,
@@ -17,7 +19,9 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'dashboard-kpis', label: 'Dashboard', icon: BarChart3 },
+  { id: 'dashboard', label: 'Appointments', icon: LayoutDashboard },
   { id: 'pos', label: 'POS', icon: CreditCard },
   { id: 'transactions', label: 'Sales History', icon: Receipt },
   { id: 'inventory', label: 'Inventory', icon: Package },

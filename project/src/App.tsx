@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { SettingsProvider } from './lib/SettingsContext';
 import Sidebar from './components/Sidebar';
+import Home from './components/Home';
 import Dashboard from './components/Dashboard';
+import DashboardKPIs from './components/DashboardKPIs';
 import Services from './components/Services';
 import Staff from './components/Staff';
 import Clients from './components/Clients';
@@ -14,7 +16,7 @@ import Settings from './components/Settings';
 import type { Client } from './lib/supabase';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const renderContent = () => {
@@ -27,6 +29,8 @@ function App() {
       );
     }
     switch (activeTab) {
+      case 'home': return <Home onNavigate={setActiveTab} />;
+      case 'dashboard-kpis': return <DashboardKPIs />;
       case 'dashboard': return <Dashboard />;
       case 'services': return <Services />;
       case 'staff': return <Staff />;
@@ -36,13 +40,13 @@ function App() {
       case 'transactions': return <Transactions />;
       case 'inventory': return <Inventory />;
       case 'settings': return <Settings />;
-      default: return <Dashboard />;
+      default: return <Home onNavigate={setActiveTab} />;
     }
   };
 
   return (
     <SettingsProvider>
-      <div className="flex min-h-screen bg-gray-900">
+      <div className="flex h-screen overflow-hidden bg-gray-900">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         {renderContent()}
       </div>

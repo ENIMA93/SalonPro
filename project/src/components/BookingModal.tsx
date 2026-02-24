@@ -57,6 +57,9 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setShowProductPrompt(false);
+      setShowSaleModal(false);
+      setSubmitting(false);
       if (editingAppointment) {
         setClientName(editingAppointment.client_name);
         setServiceId(editingAppointment.service_id);
@@ -130,6 +133,12 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
         .eq('id', editingAppointment.id);
       if (updateError) {
         setError(updateError.message);
+        return false;
+      }
+    } else {
+      const { error: insertError } = await supabase.from('appointments').insert(payload);
+      if (insertError) {
+        setError(insertError.message);
         return false;
       }
     }
