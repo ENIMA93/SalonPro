@@ -58,7 +58,7 @@ export default function ClientHistory({ client, onBack }: ClientHistoryProps) {
           .eq('client_name', clientNameTrim)
           .order('created_at', { ascending: false }),
       ]);
-      setAppointments((aptRes.data || []) as AppointmentRow[]);
+      setAppointments((aptRes.data || []) as unknown as AppointmentRow[]);
       setTransactions((txRes.data || []) as TransactionRow[]);
       setLoading(false);
     };

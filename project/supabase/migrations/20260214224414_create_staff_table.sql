@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS staff (
 
 ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view staff" ON staff;
 CREATE POLICY "Anyone can view staff"
   ON staff FOR SELECT
   TO anon, authenticated

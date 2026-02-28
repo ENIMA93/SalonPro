@@ -1,5 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from './lib/AuthContext';
 import { SettingsProvider } from './lib/SettingsContext';
+import { StaffProvider } from './lib/StaffContext';
+import Login from './components/Login';
+import ClaimAdmin from './components/ClaimAdmin';
+import ChangePassword from './components/ChangePassword';
 import Sidebar from './components/Sidebar';
 import Home from './components/Home';
 import Dashboard from './components/Dashboard';
@@ -13,14 +19,48 @@ import Transactions from './pages/Transactions';
 import ClientHistory from './pages/ClientHistory';
 import Inventory from './components/Inventory';
 import Settings from './components/Settings';
+import Profile from './components/Profile';
 import type { Client } from './lib/supabase';
 
+const STAFF_ALLOWED_TABS = new Set(['home', 'dashboard', 'pos', 'transactions', 'calendar', 'profile']);
+
 function App() {
+  const { session, profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const isAdmin = profile?.role === 'admin';
+
+  // Must run on every render (Rules of Hooks); keep above any early returns.
+  useEffect(() => {
+    if (!isAdmin && activeTab !== 'home' && !STAFF_ALLOWED_TABS.has(activeTab)) {
+      setActiveTab('home');
+    }
+  }, [isAdmin, activeTab]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  if (profile === null || !profile?.role) {
+    return <ClaimAdmin />;
+  }
+
+  if (profile.must_change_password) {
+    return <ChangePassword />;
+  }
+
+  const effectiveTab = !isAdmin && !STAFF_ALLOWED_TABS.has(activeTab) ? 'home' : activeTab;
 
   const renderContent = () => {
-    if (activeTab === 'client-history' && selectedClient) {
+    if (effectiveTab === 'client-history' && selectedClient) {
       return (
         <ClientHistory
           client={selectedClient}
@@ -28,7 +68,7 @@ function App() {
         />
       );
     }
-    switch (activeTab) {
+    switch (effectiveTab) {
       case 'home': return <Home onNavigate={setActiveTab} />;
       case 'dashboard-kpis': return <DashboardKPIs />;
       case 'dashboard': return <Dashboard />;
@@ -40,16 +80,19 @@ function App() {
       case 'transactions': return <Transactions />;
       case 'inventory': return <Inventory />;
       case 'settings': return <Settings />;
+      case 'profile': return <Profile />;
       default: return <Home onNavigate={setActiveTab} />;
     }
   };
 
   return (
     <SettingsProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-900">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-        {renderContent()}
-      </div>
+      <StaffProvider>
+        <div className="flex h-screen overflow-hidden bg-gray-900">
+          <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+          {renderContent()}
+        </div>
+      </StaffProvider>
     </SettingsProvider>
   );
 }

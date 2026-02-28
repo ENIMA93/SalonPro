@@ -17,6 +17,8 @@ export type Staff = {
   role: string;
   is_active: boolean;
   created_at: string;
+  email?: string | null;
+  user_id?: string | null;
 };
 
 export type Client = {

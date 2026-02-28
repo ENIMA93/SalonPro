@@ -24,22 +24,26 @@ CREATE TABLE IF NOT EXISTS clients (
 
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view clients" ON clients;
 CREATE POLICY "Anyone can view clients"
   ON clients FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Anyone can insert clients" ON clients;
 CREATE POLICY "Anyone can insert clients"
   ON clients FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Anyone can update clients" ON clients;
 CREATE POLICY "Anyone can update clients"
   ON clients FOR UPDATE
   TO anon, authenticated
   USING (true)
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Anyone can delete clients" ON clients;
 CREATE POLICY "Anyone can delete clients"
   ON clients FOR DELETE
   TO anon, authenticated

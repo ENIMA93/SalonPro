@@ -29,16 +29,19 @@ CREATE TABLE IF NOT EXISTS appointments (
 
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view appointments" ON appointments;
 CREATE POLICY "Anyone can view appointments"
   ON appointments FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Anyone can create appointments" ON appointments;
 CREATE POLICY "Anyone can create appointments"
   ON appointments FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Anyone can update appointments" ON appointments;
 CREATE POLICY "Anyone can update appointments"
   ON appointments FOR UPDATE
   TO anon, authenticated

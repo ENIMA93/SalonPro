@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useSettings } from '../lib/SettingsContext';
+import { useAuth } from '../lib/AuthContext';
 import BookingModal from './BookingModal';
 
 interface HomeProps {
@@ -20,20 +21,23 @@ interface HomeProps {
 }
 
 const quickActions = [
-  { id: 'dashboard-kpis', label: 'Dashboard', description: 'KPIs, revenue and reservations by month', icon: BarChart3 },
-  { id: 'dashboard', label: 'Appointments', description: 'View and manage today\'s bookings by stage', icon: LayoutDashboard },
-  { id: 'pos', label: 'Point of Sale', description: 'Services, products & checkout', icon: CreditCard },
-  { id: 'calendar', label: 'Calendar', description: 'Week view and schedule', icon: Calendar },
-  { id: 'transactions', label: 'Sales History', description: 'Past transactions and receipts', icon: Receipt },
-  { id: 'inventory', label: 'Inventory', description: 'Products and stock', icon: Package },
-  { id: 'services', label: 'Services', description: 'Manage services and pricing', icon: Scissors },
-  { id: 'staff', label: 'Staff', description: 'Team members and roles', icon: Users },
-  { id: 'clients', label: 'Clients', description: 'Client list and details', icon: UserCircle },
-  { id: 'settings', label: 'Settings', description: 'Salon name and currency', icon: Settings },
+  { id: 'dashboard-kpis', label: 'Dashboard', description: 'KPIs, revenue and reservations by month', icon: BarChart3, adminOnly: true },
+  { id: 'dashboard', label: 'Appointments', description: 'View and manage today\'s bookings by stage', icon: LayoutDashboard, adminOnly: false },
+  { id: 'pos', label: 'Point of Sale', description: 'Services, products & checkout', icon: CreditCard, adminOnly: false },
+  { id: 'calendar', label: 'Calendar', description: 'Week view and schedule', icon: Calendar, adminOnly: false },
+  { id: 'transactions', label: 'Sales History', description: 'Past transactions and receipts', icon: Receipt, adminOnly: false },
+  { id: 'inventory', label: 'Inventory', description: 'Products and stock', icon: Package, adminOnly: true },
+  { id: 'services', label: 'Services', description: 'Manage services and pricing', icon: Scissors, adminOnly: true },
+  { id: 'staff', label: 'Staff', description: 'Team members and roles', icon: Users, adminOnly: true },
+  { id: 'clients', label: 'Clients', description: 'Client list and details', icon: UserCircle, adminOnly: true },
+  { id: 'settings', label: 'Settings', description: 'Salon name and currency', icon: Settings, adminOnly: true },
 ];
 
 export default function Home({ onNavigate }: HomeProps) {
   const { settings } = useSettings();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const actions = quickActions.filter((a) => !a.adminOnly || isAdmin);
   const [bookingOpen, setBookingOpen] = useState(false);
 
   return (
@@ -62,7 +66,7 @@ export default function Home({ onNavigate }: HomeProps) {
       </div>
 
       <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {quickActions.map((action) => {
+        {actions.map((action) => {
           const Icon = action.icon;
           return (
             <button
