@@ -11,7 +11,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "supabase:link": "supabase link --project-ref ngqyfjhcxtimnebdqxen",
+    "supabase:db-push": "supabase db push",
+    "supabase:deploy": "supabase functions deploy create-staff-user",
+    "supabase:deploy-password": "supabase functions deploy set-staff-password"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
@@ -34,6 +38,7 @@
     "globals": "^15.9.0",
     "jsdom": "^28.1.0",
     "postcss": "^8.4.35",
+    "supabase": "^2.76.15",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",

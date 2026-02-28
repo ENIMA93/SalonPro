@@ -8,11 +8,13 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view transactions" ON transactions;
 CREATE POLICY "Anyone can view transactions"
   ON transactions FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Anyone can create transactions" ON transactions;
 CREATE POLICY "Anyone can create transactions"
   ON transactions FOR INSERT
   TO anon, authenticated

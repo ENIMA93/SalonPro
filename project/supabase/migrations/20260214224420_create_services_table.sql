@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS services (
 
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view services" ON services;
 CREATE POLICY "Anyone can view services"
   ON services FOR SELECT
   TO anon, authenticated

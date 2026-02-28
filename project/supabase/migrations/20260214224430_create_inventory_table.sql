@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS inventory (
 
 ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view inventory" ON inventory;
 CREATE POLICY "Anyone can view inventory"
   ON inventory FOR SELECT
   TO anon, authenticated

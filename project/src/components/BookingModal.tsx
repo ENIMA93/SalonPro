@@ -118,6 +118,9 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     return () => { cancelled = true; };
   }, [isOpen, clientName]);
 
+  // Persists the appointment only. Does NOT call onSuccess/onClose so that the contact
+  // modal can be shown; callers (handleProductPromptNo, handleSaleModalSuccess) must
+  // setShowContactModal(true) and only invoke onSuccess when the user closes that modal.
   const doUpdateAppointment = async (): Promise<boolean> => {
     const payload = {
       client_name: clientName.trim(),
@@ -142,7 +145,6 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
         return false;
       }
     }
-    onSuccess();
     return true;
   };
 
@@ -216,8 +218,11 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
     setSubmitting(false);
   };
 
+  // Single place we call onSuccess for the "complete with product prompt or sale" flow,
+  // so the parent runs side effects (e.g. close modal, navigate) only once when done.
   const handleContactModalClose = () => {
     setShowContactModal(false);
+    onSuccess();
     onClose();
   };
 
@@ -236,7 +241,6 @@ export default function BookingModal({ isOpen, onClose, onSuccess, editingAppoin
         isOpen={showContactModal}
         onClose={handleContactModalClose}
         clientName={clientName.trim()}
-        onSaved={() => onSuccess()}
       />
       {showProductPrompt && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center">

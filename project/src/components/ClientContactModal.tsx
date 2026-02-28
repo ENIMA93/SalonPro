@@ -125,8 +125,6 @@ export default function ClientContactModal({
 
   const handleConfirmOrUpdate = () => {
     if (!existingClient) return;
-    const phoneVal = phone.trim() ? normalizePhone(phone.trim()) : null;
-    const emailVal = email.trim() || null;
     const phoneErr = phone.trim() ? getPhoneError(phone) : null;
     const emailErr = email.trim() ? getEmailError(email) : null;
     if (phoneErr) {
