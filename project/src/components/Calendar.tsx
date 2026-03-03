@@ -255,38 +255,112 @@ export default function Calendar() {
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           </div>
         ) : viewMode === 'week' ? (
+          /* ── WEEK VIEW ── */
           <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-            <div className="min-w-[800px] overflow-x-auto"><div className="overflow-y-auto max-h-[70vh]">
-              <div className="grid grid-cols-8 border-b border-gray-700">
-                <div className="py-2 px-2 text-gray-500 text-xs font-medium border-r border-gray-700" />
-                {weekDays.map((d) => (
-                  <div
-                    key={toDateKey(d)}
-                    className={`py-2 text-center text-sm font-medium border-r border-gray-700 last:border-r-0 ${toDateKey(d) === todayKey ? 'text-purple-400' : 'text-gray-400'
-                      }`}
-                  >
-                    <div>{WEEKDAYS[d.getDay()]}</div>
-                    <div className="text-white font-semibold">{d.getDate()}</div>
-                  </div>
-                ))}
+            <div className="overflow-x-auto">
+              <div className="min-w-[800px]">
+                {/* Sticky day-of-week headers */}
+                <div className="grid grid-cols-8 border-b border-gray-700 sticky top-0 z-10 bg-gray-800">
+                  <div className="py-2 px-2 text-gray-500 text-xs font-medium border-r border-gray-700" />
+                  {weekDays.map((d) => (
+                    <div
+                      key={toDateKey(d)}
+                      className={`py-2 text-center text-sm font-medium border-r border-gray-700 last:border-r-0 ${toDateKey(d) === todayKey ? 'text-purple-400' : 'text-gray-400'
+                        }`}
+                    >
+                      <div>{WEEKDAYS[d.getDay()]}</div>
+                      <div className="text-white font-semibold">{d.getDate()}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Scrollable hourly time grid */}
+                <div className="overflow-y-auto max-h-[65vh]">
+                  {HOURS.map((hour) => (
+                    <div key={hour} className="grid grid-cols-8 border-b border-gray-700 last:border-b-0 min-h-[52px]">
+                      <div className="py-1.5 px-2 text-gray-500 text-xs font-medium border-r border-gray-700 shrink-0">
+                        {hour === 0 ? '12:00 AM' : hour === 12 ? '12:00 PM' : hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`}
+                      </div>
+                      {weekDays.map((d) => {
+                        const key = toDateKey(d);
+                        const hourApts = appointmentsByDayAndHour[key]?.[hour] ?? [];
+                        return (
+                          <div key={key} className="p-1 border-r border-gray-700 last:border-r-0 bg-gray-800/30 min-h-[52px]">
+                            {hourApts.map((apt) => (
+                              <div
+                                key={apt.id}
+                                className={`group rounded border p-1.5 cursor-pointer text-xs transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
+                                  } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
+                                onClick={() => apt.status !== 'cancelled' && setEditingAppointment({
+                                  id: apt.id,
+                                  client_name: apt.client_name,
+                                  service_id: apt.service_id ?? '',
+                                  staff_id: apt.staff_id ?? '',
+                                  date_time: apt.date_time,
+                                  status: apt.status,
+                                })}
+                              >
+                                <p className="text-white font-medium truncate" title={apt.client_name}>{apt.client_name}</p>
+                                <p className="text-gray-300 truncate" title={getServiceName(apt.services)}>{getServiceName(apt.services)}</p>
+                                <p className="text-gray-400 flex items-center gap-0.5 mt-0.5">
+                                  <Clock className="w-3 h-3" />
+                                  {formatTime(apt.date_time)}
+                                </p>
+                                {apt.status !== 'cancelled' && (
+                                  <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingAppointment({ id: apt.id, client_name: apt.client_name, service_id: apt.service_id ?? '', staff_id: apt.staff_id ?? '', date_time: apt.date_time, status: apt.status }); }} className="p-0.5 rounded bg-gray-800/80 text-gray-300 hover:text-white" aria-label="Edit">
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleCancel(apt); }} className="p-0.5 rounded bg-gray-800/80 text-gray-300 hover:text-red-400" aria-label="Cancel">
+                                      <XCircle className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
-              {HOURS.map((hour) => (
-                <div key={hour} className="grid grid-cols-8 border-b border-gray-700 last:border-b-0 min-h-[52px]">
-                  <div className="py-1.5 px-2 text-gray-500 text-xs font-medium border-r border-gray-700 shrink-0">
-                    {hour === 0 ? '12:00 AM' : hour === 12 ? '12:00 PM' : hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`}
-                  </div>
-                  {weekDays.map((d) => {
-                    const key = toDateKey(d);
-                    const hourApts = appointmentsByDayAndHour[key]?.[hour] ?? [];
-                    return (
+            </div>
+          </div>
+        ) : (
+          /* ── MONTH VIEW ── */
+          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 border-b border-gray-700">
+              {WEEKDAYS.map((day) => (
+                <div key={day} className="py-3 text-center text-gray-400 text-sm font-medium">
+                  {day}
+                </div>
+              ))}
+            </div>
+            {/* Scrollable calendar grid */}
+            <div className="overflow-y-auto max-h-[70vh]">
+              <div className="grid grid-cols-7 [grid-auto-rows:minmax(100px,1fr)]">
+                {calendarDays.map(({ date, isCurrentMonth }) => {
+                  const key = toDateKey(date);
+                  const dayAppointments = appointmentsByDay[key] ?? [];
+                  const isToday = key === todayKey;
+                  return (
+                    <div
+                      key={key}
+                      className={`border-b border-r border-gray-700 last:border-r-0 flex flex-col min-h-0 ${isCurrentMonth ? 'bg-gray-800/50' : 'bg-gray-900/60'
+                        }`}
+                    >
                       <div
-                        key={key}
-                        className="p-1 border-r border-gray-700 last:border-r-0 bg-gray-800/30 min-h-[52px]"
+                        className={`p-1.5 sm:p-2 text-sm font-medium shrink-0 ${isCurrentMonth ? 'text-white' : 'text-gray-500'
+                          } ${isToday ? 'rounded-full bg-purple-600 w-8 h-8 flex items-center justify-center' : ''}`}
                       >
-                        {hourApts.map((apt) => (
+                        {date.getDate()}
+                      </div>
+                      <div className="flex-1 overflow-auto p-1.5 space-y-1">
+                        {dayAppointments.map((apt) => (
                           <div
                             key={apt.id}
-                            className={`group rounded border p-1.5 cursor-pointer text-xs transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
+                            className={`group rounded-lg border p-2 cursor-pointer transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
                               } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
                             onClick={() => apt.status !== 'cancelled' && setEditingAppointment({
                               id: apt.id,
@@ -297,122 +371,43 @@ export default function Calendar() {
                               status: apt.status,
                             })}
                           >
-                            <p className="text-white font-medium truncate" title={apt.client_name}>{apt.client_name}</p>
-                            <p className="text-gray-300 truncate" title={getServiceName(apt.services)}>{getServiceName(apt.services)}</p>
-                            <p className="text-gray-400 flex items-center gap-0.5 mt-0.5">
+                            <p className="text-white font-medium truncate text-xs" title={apt.client_name}>
+                              {apt.client_name}
+                            </p>
+                            <p className="text-gray-300 truncate text-xs" title={getServiceName(apt.services)}>
+                              {getServiceName(apt.services)}
+                            </p>
+                            <p className="text-gray-400 text-xs flex items-center gap-0.5 mt-0.5">
                               <Clock className="w-3 h-3" />
                               {formatTime(apt.date_time)}
                             </p>
                             {apt.status !== 'cancelled' && (
-                              <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setEditingAppointment({ id: apt.id, client_name: apt.client_name, service_id: apt.service_id ?? '', staff_id: apt.staff_id ?? '', date_time: apt.date_time, status: apt.status }); }} className="p-0.5 rounded bg-gray-800/80 text-gray-300 hover:text-white" aria-label="Edit">
-                                  <Pencil className="w-3 h-3" />
+                              <div className="flex gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setEditingAppointment({ id: apt.id, client_name: apt.client_name, service_id: apt.service_id ?? '', staff_id: apt.staff_id ?? '', date_time: apt.date_time, status: apt.status }); }}
+                                  className="p-1 rounded bg-gray-800/80 text-gray-300 hover:text-white"
+                                  aria-label="Edit"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                                <button type="button" onClick={(e) => { e.stopPropagation(); handleCancel(apt); }} className="p-0.5 rounded bg-gray-800/80 text-gray-300 hover:text-red-400" aria-label="Cancel">
-                                  <XCircle className="w-3 h-3" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleCancel(apt); }}
+                                  className="p-1 rounded bg-gray-800/80 text-gray-300 hover:text-red-400"
+                                  aria-label="Cancel"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )}
                           </div>
                         ))}
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div></div>
-          </div>
-        ) : (
-          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-            {/* Weekday headers */}
-            <div className="grid grid-cols-7 border-b border-gray-700">
-              {WEEKDAYS.map((day) => (
-                <div
-                  key={day}
-                  className="py-3 text-center text-gray-400 text-sm font-medium"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 overflow-y-auto max-h-[70vh] [grid-auto-rows:minmax(100px,auto)]">
-              {calendarDays.map(({ date, isCurrentMonth }) => {
-                const key = toDateKey(date);
-                const dayAppointments = appointmentsByDay[key] ?? [];
-                const isToday = key === todayKey;
-                return (
-                  <div
-                    key={key}
-                    className={`border-b border-r border-gray-700 last:border-r-0 flex flex-col min-h-0 ${isCurrentMonth ? 'bg-gray-800/50' : 'bg-gray-900/60'
-                      }`}
-                  >
-                    <div
-                      className={`p-1.5 sm:p-2 text-sm font-medium shrink-0 ${isCurrentMonth ? 'text-white' : 'text-gray-500'
-                        } ${isToday ? 'rounded-full bg-purple-600 w-8 h-8 flex items-center justify-center' : ''}`}
-                    >
-                      {date.getDate()}
                     </div>
-                    <div className="flex-1 overflow-auto p-1.5 space-y-1">
-                      {dayAppointments.map((apt) => (
-                        <div
-                          key={apt.id}
-                          className={`group rounded-lg border p-2 cursor-pointer transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
-                            } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
-                          onClick={() => apt.status !== 'cancelled' && setEditingAppointment({
-                            id: apt.id,
-                            client_name: apt.client_name,
-                            service_id: apt.service_id ?? '',
-                            staff_id: apt.staff_id ?? '',
-                            date_time: apt.date_time,
-                            status: apt.status,
-                          })}
-                        >
-                          <p className="text-white font-medium truncate text-xs" title={apt.client_name}>
-                            {apt.client_name}
-                          </p>
-                          <p className="text-gray-300 truncate text-xs" title={getServiceName(apt.services)}>
-                            {getServiceName(apt.services)}
-                          </p>
-                          <p className="text-gray-400 text-xs flex items-center gap-0.5 mt-0.5">
-                            <Clock className="w-3 h-3" />
-                            {formatTime(apt.date_time)}
-                          </p>
-                          {apt.status !== 'cancelled' && (
-                            <div className="flex gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation(); setEditingAppointment({
-                                    id: apt.id,
-                                    client_name: apt.client_name,
-                                    service_id: apt.service_id ?? '',
-                                    staff_id: apt.staff_id ?? '',
-                                    date_time: apt.date_time,
-                                    status: apt.status,
-                                  });
-                                }}
-                                className="p-1 rounded bg-gray-800/80 text-gray-300 hover:text-white"
-                                aria-label="Edit"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCancel(apt); }}
-                                className="p-1 rounded bg-gray-800/80 text-gray-300 hover:text-red-400"
-                                aria-label="Cancel"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
