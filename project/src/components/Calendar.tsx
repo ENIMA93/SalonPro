@@ -67,11 +67,11 @@ export default function Calendar() {
   const filteredAppointments = !searchLower
     ? appointments
     : appointments.filter((apt) => {
-        const nameMatch = (apt.client_name || '').toLowerCase().includes(searchLower);
-        if (nameMatch) return true;
-        const client = clientsForSearch.find((c) => c.name === apt.client_name);
-        return client?.email?.toLowerCase().includes(searchLower) ?? false;
-      });
+      const nameMatch = (apt.client_name || '').toLowerCase().includes(searchLower);
+      if (nameMatch) return true;
+      const client = clientsForSearch.find((c) => c.name === apt.client_name);
+      return client?.email?.toLowerCase().includes(searchLower) ?? false;
+    });
 
   const handleCancel = async (apt: CalendarAppointment) => {
     if (!window.confirm(`Cancel this appointment with ${apt.client_name}?`)) return;
@@ -255,16 +255,15 @@ export default function Calendar() {
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           </div>
         ) : viewMode === 'week' ? (
-          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
-            <div className="min-w-[800px]">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="min-w-[800px] overflow-x-auto"><div className="overflow-y-auto max-h-[70vh]">
               <div className="grid grid-cols-8 border-b border-gray-700">
                 <div className="py-2 px-2 text-gray-500 text-xs font-medium border-r border-gray-700" />
                 {weekDays.map((d) => (
                   <div
                     key={toDateKey(d)}
-                    className={`py-2 text-center text-sm font-medium border-r border-gray-700 last:border-r-0 ${
-                      toDateKey(d) === todayKey ? 'text-purple-400' : 'text-gray-400'
-                    }`}
+                    className={`py-2 text-center text-sm font-medium border-r border-gray-700 last:border-r-0 ${toDateKey(d) === todayKey ? 'text-purple-400' : 'text-gray-400'
+                      }`}
                   >
                     <div>{WEEKDAYS[d.getDay()]}</div>
                     <div className="text-white font-semibold">{d.getDate()}</div>
@@ -287,9 +286,8 @@ export default function Calendar() {
                         {hourApts.map((apt) => (
                           <div
                             key={apt.id}
-                            className={`group rounded border p-1.5 cursor-pointer text-xs transition-colors ${
-                              statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
-                            } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
+                            className={`group rounded border p-1.5 cursor-pointer text-xs transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
+                              } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
                             onClick={() => apt.status !== 'cancelled' && setEditingAppointment({
                               id: apt.id,
                               client_name: apt.client_name,
@@ -322,7 +320,7 @@ export default function Calendar() {
                   })}
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
         ) : (
           <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
@@ -338,7 +336,7 @@ export default function Calendar() {
               ))}
             </div>
             {/* Calendar grid */}
-            <div className="grid grid-cols-7 min-h-[60vh] [grid-auto-rows:minmax(100px,1fr)]">
+            <div className="grid grid-cols-7 overflow-y-auto max-h-[70vh] [grid-auto-rows:minmax(100px,auto)]">
               {calendarDays.map(({ date, isCurrentMonth }) => {
                 const key = toDateKey(date);
                 const dayAppointments = appointmentsByDay[key] ?? [];
@@ -346,14 +344,12 @@ export default function Calendar() {
                 return (
                   <div
                     key={key}
-                    className={`border-b border-r border-gray-700 last:border-r-0 flex flex-col min-h-0 ${
-                      isCurrentMonth ? 'bg-gray-800/50' : 'bg-gray-900/60'
-                    }`}
+                    className={`border-b border-r border-gray-700 last:border-r-0 flex flex-col min-h-0 ${isCurrentMonth ? 'bg-gray-800/50' : 'bg-gray-900/60'
+                      }`}
                   >
                     <div
-                      className={`p-1.5 sm:p-2 text-sm font-medium shrink-0 ${
-                        isCurrentMonth ? 'text-white' : 'text-gray-500'
-                      } ${isToday ? 'rounded-full bg-purple-600 w-8 h-8 flex items-center justify-center' : ''}`}
+                      className={`p-1.5 sm:p-2 text-sm font-medium shrink-0 ${isCurrentMonth ? 'text-white' : 'text-gray-500'
+                        } ${isToday ? 'rounded-full bg-purple-600 w-8 h-8 flex items-center justify-center' : ''}`}
                     >
                       {date.getDate()}
                     </div>
@@ -361,9 +357,8 @@ export default function Calendar() {
                       {dayAppointments.map((apt) => (
                         <div
                           key={apt.id}
-                          className={`group rounded-lg border p-2 cursor-pointer transition-colors ${
-                            statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
-                          } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
+                          className={`group rounded-lg border p-2 cursor-pointer transition-colors ${statusColors[apt.status] || 'bg-gray-700/50 border-gray-600'
+                            } ${apt.status === 'cancelled' ? 'opacity-60' : ''}`}
                           onClick={() => apt.status !== 'cancelled' && setEditingAppointment({
                             id: apt.id,
                             client_name: apt.client_name,
@@ -387,14 +382,16 @@ export default function Calendar() {
                             <div className="flex gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setEditingAppointment({
-                                  id: apt.id,
-                                  client_name: apt.client_name,
-                                  service_id: apt.service_id ?? '',
-                                  staff_id: apt.staff_id ?? '',
-                                  date_time: apt.date_time,
-                                  status: apt.status,
-                                }); }}
+                                onClick={(e) => {
+                                  e.stopPropagation(); setEditingAppointment({
+                                    id: apt.id,
+                                    client_name: apt.client_name,
+                                    service_id: apt.service_id ?? '',
+                                    staff_id: apt.staff_id ?? '',
+                                    date_time: apt.date_time,
+                                    status: apt.status,
+                                  });
+                                }}
                                 className="p-1 rounded bg-gray-800/80 text-gray-300 hover:text-white"
                                 aria-label="Edit"
                               >
