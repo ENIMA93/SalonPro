@@ -44,6 +44,7 @@ FROM (VALUES
   ('Disposable Gloves', 50, 5, 'all', 'other')
 ) AS v(product_name, stock_count, price, gender, category)
 WHERE NOT EXISTS (
+  -- Per-row check: skip only this product_name if it already exists in inventory (adds the rest).
   SELECT 1 FROM public.inventory i
   WHERE i.product_name = v.product_name
 );
