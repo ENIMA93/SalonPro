@@ -43,15 +43,15 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const menuItems = allMenuItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <div className="w-64 bg-gray-900 min-h-screen p-6 flex flex-col">
-      <div className="mb-8">
+    <div className="w-64 h-screen flex flex-col bg-gray-900 shrink-0 overflow-hidden">
+      <div className="p-6 pb-4 shrink-0">
         <div className="flex items-center gap-2 text-white">
-          <Scissors className="w-8 h-8 text-purple-400" />
-          <h1 className="text-2xl font-bold">{settings.salonName}</h1>
+          <Scissors className="w-8 h-8 text-purple-400 shrink-0" />
+          <h1 className="text-xl font-bold truncate">{settings.salonName}</h1>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -60,22 +60,22 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${
                 isActive
                   ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
                   : 'text-gray-400 hover:bg-gray-800 hover:text-white'
               }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="font-medium truncate">{item.label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="pt-6 border-t border-gray-800 space-y-2">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+      <div className="p-4 pt-3 border-t border-gray-800 shrink-0 space-y-2">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm shrink-0">
             {(user?.email?.charAt(0) ?? '?').toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -85,10 +85,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </div>
         <button
           onClick={() => signOut()}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium"
         >
-          <LogOut className="w-4 h-4" />
-          Log out
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span className="truncate">Log out</span>
         </button>
       </div>
     </div>

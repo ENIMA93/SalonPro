@@ -6,6 +6,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "dev:fresh": "npm run kill-port && vite",
+    "kill-port": "npx kill-port 5176",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

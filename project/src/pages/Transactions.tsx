@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Receipt, Printer, TrendingUp, Search } from 'lucide-react';
+import { Loader2, Receipt, Printer, TrendingUp, Search, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../lib/SettingsContext';
 
@@ -21,6 +21,24 @@ function getStaffName(row: TransactionRow): string {
 
 type SortKey = 'created_at' | 'total_amount';
 type SortDir = 'asc' | 'desc';
+type Timeframe = 'today' | 'week' | 'month' | 'all';
+
+function getTimeframeRange(tf: Timeframe): { start: Date | null; end: Date | null } {
+  const now = new Date();
+  if (tf === 'all') return { start: null, end: null };
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (tf === 'today') return { start, end: now };
+  if (tf === 'week') {
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+    start.setDate(diff);
+    return { start, end: now };
+  }
+  // month
+  start.setDate(1);
+  return { start, end: now };
+}
 
 function formatTableDate(iso: string): string {
   const d = new Date(iso);
@@ -41,6 +59,7 @@ export default function Transactions() {
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [timeframe, setTimeframe] = useState<Timeframe>('all');
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [printTransaction, setPrintTransaction] = useState<TransactionRow | null>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
@@ -63,10 +82,18 @@ export default function Transactions() {
     fetchTransactions();
   }, []);
 
-  const searchLower = searchQuery.trim().toLowerCase();
-  const filteredTransactions = !searchLower
+  const { start: rangeStart, end: rangeEnd } = getTimeframeRange(timeframe);
+  const byTimeframe = !rangeStart
     ? transactions
     : transactions.filter((row) => {
+        const t = new Date(row.created_at).getTime();
+        return t >= rangeStart.getTime() && t <= (rangeEnd?.getTime() ?? t);
+      });
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredTransactions = !searchLower
+    ? byTimeframe
+    : byTimeframe.filter((row) => {
         const client = (row.client_name?.trim() || 'Walk-in').toLowerCase();
         const staff = getStaffName(row).toLowerCase();
         const dateStr = formatTableDate(row.created_at).toLowerCase();
@@ -121,8 +148,9 @@ export default function Transactions() {
   }
 
   return (
-    <div className="flex-1 bg-gray-900 min-h-screen">
-      <div className="p-8">
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-900 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-8">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Sales History</h1>
           <p className="text-gray-400">View and manage past transactions.</p>
@@ -147,8 +175,28 @@ export default function Transactions() {
         )}
 
         {!loading && transactions.length > 0 && (
-          <div className="mb-6">
-            <div className="relative max-w-md">
+          <div className="mb-6 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-400 text-sm font-medium">Timeframe:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(['today', 'week', 'month', 'all'] as Timeframe[]).map((tf) => (
+                <button
+                  key={tf}
+                  type="button"
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    timeframe === tf
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-600'
+                  }`}
+                >
+                  {tf === 'today' ? 'Today' : tf === 'week' ? 'This week' : tf === 'month' ? 'This month' : 'All time'}
+                </button>
+              ))}
+            </div>
+            <div className="relative max-w-md ml-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
                 type="text"
@@ -222,6 +270,7 @@ export default function Transactions() {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {/* Hidden printable receipt */}

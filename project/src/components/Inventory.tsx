@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Pencil, Trash2, Package, Search, AlertTriangle, Boxes } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Package, Search, AlertTriangle, Boxes, RefreshCw, ChevronRight, X } from 'lucide-react';
 import { supabase, type Inventory } from '../lib/supabase';
 import { useSettings } from '../lib/SettingsContext';
 import ProductModal from './ProductModal';
@@ -15,6 +15,10 @@ export default function Inventory() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [filterGender, setFilterGender] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [refreshing, setRefreshing] = useState(false);
+  const [kpiDetail, setKpiDetail] = useState<'total' | 'low_stock' | 'value' | null>(null);
 
   const fetchProducts = async () => {
     setError(null);
@@ -24,10 +28,9 @@ export default function Inventory() {
       .order('product_name');
     if (fetchError) {
       setError(fetchError.message);
-      setProducts([]);
       return;
     }
-    setProducts(data || []);
+    setProducts((data ?? []) as Inventory[]);
   };
 
   useEffect(() => {
@@ -49,8 +52,11 @@ export default function Inventory() {
     setModalOpen(true);
   };
 
-  const handleModalSuccess = () => {
-    fetchProducts();
+  const handleModalSuccess = async (newOrUpdated?: Inventory) => {
+    setSearch('');
+    setFilterGender('all');
+    setFilterCategory('all');
+    await fetchProducts();
   };
 
   const handleDelete = async (item: Inventory) => {
@@ -67,19 +73,25 @@ export default function Inventory() {
   };
 
   const q = search.trim().toLowerCase();
-  const filtered = !q ? products : products.filter((p) => p.product_name.toLowerCase().includes(q));
+  const bySearch = !q ? products : products.filter((p) => p.product_name.toLowerCase().includes(q));
+  const filtered = bySearch.filter((p) => {
+    if (filterGender !== 'all' && (p.gender ?? 'all') !== filterGender) return false;
+    if (filterCategory !== 'all' && (p.category ?? 'other') !== filterCategory) return false;
+    return true;
+  });
   const lowStockCount = products.filter((p) => p.stock_count <= LOW_STOCK_THRESHOLD).length;
   const totalValue = products.reduce((sum, p) => sum + Number(p.price) * (p.stock_count ?? 0), 0);
 
   return (
-    <div className="flex-1 min-h-screen bg-gray-900 flex flex-col min-w-0">
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-900 min-w-0 overflow-hidden">
       <ProductModal
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditingProduct(null); }}
         onSuccess={handleModalSuccess}
         product={editingProduct}
       />
-      <div className="flex-1 flex flex-col p-6 md:p-8 w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex flex-col p-6 md:p-8 w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400">
@@ -90,13 +102,25 @@ export default function Inventory() {
               <p className="text-gray-400 text-sm mt-0.5">Manage products and stock. Add or edit from here.</p>
             </div>
           </div>
-          <button
-            onClick={openAddModal}
-            className="shrink-0 inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Plus className="w-5 h-5" />
-            Add Product
-          </button>
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => { setRefreshing(true); await fetchProducts(); setRefreshing(false); }}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50"
+              title="Reload list from server"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Plus className="w-5 h-5" />
+              Add Product
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -108,39 +132,128 @@ export default function Inventory() {
 
         {!loading && products.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setKpiDetail('total')}
+              className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3 text-left hover:border-gray-600 hover:bg-gray-800/80 transition-all cursor-pointer group"
+            >
               <div className="p-2 rounded-lg bg-gray-700/80">
                 <Boxes className="w-5 h-5 text-gray-400" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-gray-400 text-sm font-medium">Total products</p>
                 <p className="text-xl font-bold text-white">{products.length}</p>
               </div>
-            </div>
-            <div className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3">
+              <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-purple-400 shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setKpiDetail('low_stock')}
+              className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3 text-left hover:border-amber-500/50 hover:bg-gray-800/80 transition-all cursor-pointer group"
+            >
               <div className="p-2 rounded-lg bg-amber-500/20">
                 <AlertTriangle className="w-5 h-5 text-amber-400" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-gray-400 text-sm font-medium">Low stock (≤{LOW_STOCK_THRESHOLD})</p>
                 <p className="text-xl font-bold text-white">{lowStockCount}</p>
               </div>
-            </div>
-            <div className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3">
+              <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-amber-400 shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setKpiDetail('value')}
+              className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-4 flex items-center gap-3 text-left hover:border-green-500/50 hover:bg-gray-800/80 transition-all cursor-pointer group"
+            >
               <div className="p-2 rounded-lg bg-green-500/20">
                 <Package className="w-5 h-5 text-green-400" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-gray-400 text-sm font-medium">Stock value</p>
                 <p className="text-xl font-bold text-green-400">{totalValue.toFixed(2)} {settings.currency}</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-green-400 shrink-0" />
+            </button>
+          </div>
+        )}
+
+        {kpiDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70" onClick={() => setKpiDetail(null)} />
+            <div className="relative bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl">
+              <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                <h2 className="text-lg font-bold text-white">
+                  {kpiDetail === 'total' && 'All products'}
+                  {kpiDetail === 'low_stock' && `Low stock (≤${LOW_STOCK_THRESHOLD} units)`}
+                  {kpiDetail === 'value' && 'Stock value breakdown'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setKpiDetail(null)}
+                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-4 flex-1 min-h-0">
+                {kpiDetail === 'total' && (
+                  <ul className="space-y-2">
+                    {products.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-700/50 last:border-0">
+                        <span className="text-white font-medium truncate">{p.product_name}</span>
+                        <span className="text-gray-400 text-sm shrink-0">Stock: {p.stock_count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {kpiDetail === 'low_stock' && (
+                  lowStockCount === 0 ? (
+                    <p className="text-gray-400 py-4">No products with low stock.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {products
+                        .filter((p) => p.stock_count <= LOW_STOCK_THRESHOLD)
+                        .sort((a, b) => a.stock_count - b.stock_count)
+                        .map((p) => (
+                          <li key={p.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-700/50 last:border-0">
+                            <span className="text-white font-medium truncate">{p.product_name}</span>
+                            <span className="text-amber-400 font-semibold shrink-0">{p.stock_count} left</span>
+                            <button
+                              type="button"
+                              onClick={() => { setKpiDetail(null); openEditModal(p); }}
+                              className="shrink-0 text-purple-400 hover:text-purple-300 text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  )
+                )}
+                {kpiDetail === 'value' && (
+                  <ul className="space-y-2">
+                    {[...products]
+                      .map((p) => ({ product: p, value: Number(p.price) * (p.stock_count ?? 0) }))
+                      .sort((a, b) => b.value - a.value)
+                      .map(({ product, value }) => (
+                        <li key={product.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-700/50 last:border-0">
+                          <span className="text-white font-medium truncate">{product.product_name}</span>
+                          <span className="text-green-400 font-medium shrink-0">
+                            {value.toFixed(2)} {settings.currency}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {!loading && products.length > 0 && (
-          <div className="mb-4">
-            <div className="relative max-w-md">
+          <div className="mb-4 flex flex-wrap items-center gap-4">
+            <div className="relative max-w-xs flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
                 type="text"
@@ -149,6 +262,33 @@ export default function Inventory() {
                 placeholder="Search by product name..."
                 className="w-full bg-gray-800 border border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 focus:outline-none transition-shadow"
               />
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-gray-400 text-sm">Gender:</span>
+              <select
+                value={filterGender}
+                onChange={(e) => setFilterGender(e.target.value)}
+                className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
+              >
+                <option value="all">All</option>
+                <option value="men">Men</option>
+                <option value="women">Women</option>
+                <option value="kids">Kids</option>
+              </select>
+              <span className="text-gray-400 text-sm">Type:</span>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
+              >
+                <option value="all">All</option>
+                <option value="hair">Hair</option>
+                <option value="face">Face</option>
+                <option value="hand">Hand</option>
+                <option value="body">Body</option>
+                <option value="nails">Nails</option>
+                <option value="other">Other</option>
+              </select>
             </div>
           </div>
         )}
@@ -168,7 +308,11 @@ export default function Inventory() {
                   <Package className="w-14 h-14 text-gray-500" />
                 </div>
                 <h2 className="text-lg font-semibold text-white mb-1">
-                  {q ? `No products match "${search.trim()}"` : 'No products yet'}
+                  {filtered.length === 0 && bySearch.length > 0
+                    ? 'No products match filters'
+                    : q
+                      ? `No products match "${search.trim()}"`
+                      : 'No products yet'}
                 </h2>
                 <p className="text-gray-400 text-sm max-w-sm mb-6">
                   {q ? 'Try a different search term.' : 'Add your first product to start tracking stock and selling from POS.'}
@@ -252,6 +396,7 @@ export default function Inventory() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

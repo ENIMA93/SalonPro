@@ -2,17 +2,35 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Package } from 'lucide-react';
 import { supabase, type Inventory } from '../lib/supabase';
 
+function toInventory(row: Record<string, unknown> | null): Inventory | undefined {
+  if (!row || typeof row.id !== 'string') return undefined;
+  return {
+    id: row.id,
+    product_name: String(row.product_name ?? ''),
+    stock_count: Number(row.stock_count ?? 0),
+    price: Number(row.price ?? 0),
+    gender: row.gender != null ? String(row.gender) : null,
+    category: row.category != null ? String(row.category) : null,
+    created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+  };
+}
+
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newOrUpdatedProduct?: Inventory) => void | Promise<void>;
   product: Inventory | null;
 }
+
+const GENDER_OPTIONS = ['all', 'men', 'women', 'kids'];
+const CATEGORY_OPTIONS = ['hair', 'face', 'hand', 'body', 'nails', 'other'];
 
 export default function ProductModal({ isOpen, onClose, onSuccess, product }: ProductModalProps) {
   const [productName, setProductName] = useState('');
   const [stockCount, setStockCount] = useState<number>(0);
   const [price, setPrice] = useState<number>(0);
+  const [gender, setGender] = useState('all');
+  const [category, setCategory] = useState('other');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,10 +43,14 @@ export default function ProductModal({ isOpen, onClose, onSuccess, product }: Pr
       setProductName(product.product_name);
       setStockCount(product.stock_count);
       setPrice(Number(product.price));
+      setGender(product.gender ?? 'all');
+      setCategory(product.category ?? 'other');
     } else {
       setProductName('');
       setStockCount(0);
       setPrice(0);
+      setGender('all');
+      setCategory('other');
     }
   }, [isOpen, product]);
 
@@ -51,32 +73,54 @@ export default function ProductModal({ isOpen, onClose, onSuccess, product }: Pr
     setError(null);
 
     if (isEdit && product) {
-      const { error: updateError } = await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('inventory')
         .update({
           product_name: productName.trim(),
           stock_count: stockCount,
           price,
+          gender,
+          category,
         })
-        .eq('id', product.id);
+        .eq('id', product.id)
+        .select()
+        .single();
       setSubmitting(false);
       if (updateError) {
         setError(updateError.message);
         return;
       }
-    } else {
-      const { error: insertError } = await supabase.from('inventory').insert({
+      const inv = toInventory(updated ?? null);
+      await Promise.resolve(onSuccess(inv));
+      handleClose();
+      return;
+    }
+    const { data: inserted, error: insertError } = await supabase
+      .from('inventory')
+      .insert({
         product_name: productName.trim(),
         stock_count: stockCount,
         price,
-      });
-      setSubmitting(false);
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
+        gender,
+        category,
+      })
+      .select()
+      .single();
+    setSubmitting(false);
+    if (insertError) {
+      setError(insertError.message);
+      return;
     }
-    onSuccess();
+    const inv = toInventory(inserted ?? null) ?? {
+      id: crypto.randomUUID(),
+      product_name: productName.trim(),
+      stock_count: stockCount,
+      price,
+      gender: gender || null,
+      category: category || null,
+      created_at: new Date().toISOString(),
+    };
+    await Promise.resolve(onSuccess(inv));
     handleClose();
   };
 
@@ -117,6 +161,32 @@ export default function ProductModal({ isOpen, onClose, onSuccess, product }: Pr
               className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
               placeholder="e.g. Shampoo Revitalizing"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Gender</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+              >
+                {GENDER_OPTIONS.map((g) => (
+                  <option key={g} value={g}>{g === 'all' ? 'All' : g.charAt(0).toUpperCase() + g.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Type</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+              >
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

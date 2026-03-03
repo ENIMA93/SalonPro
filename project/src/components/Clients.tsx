@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Pencil, Trash2, History, Search } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, History, Search, Star } from 'lucide-react';
 import { supabase, type Client as ClientType } from '../lib/supabase';
 import ClientModal from './ClientModal';
 
@@ -54,14 +54,15 @@ export default function Clients({ onSelectClient }: ClientsProps) {
   };
 
   return (
-    <div className="flex-1 bg-gray-900 min-h-screen">
-      <div className="p-8">
-        <ClientModal
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-900 overflow-hidden">
+      <ClientModal
           isOpen={modalOpen}
           onClose={handleCloseModal}
-          onSuccess={() => { fetchClients(); handleCloseModal(); }}
-          client={editingClient}
-        />
+        onSuccess={() => { fetchClients(); handleCloseModal(); }}
+        client={editingClient}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Clients</h1>
@@ -127,6 +128,7 @@ export default function Clients({ onSelectClient }: ClientsProps) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="text-white font-semibold text-lg group-hover:text-purple-300 transition-colors">{c.name}</h3>
+                      {c.is_vip && <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" title="VIP" />}
                       <span className="text-gray-500 text-xs font-mono" title={c.id}>#{c.id.slice(0, 8)}</span>
                     </div>
                     {c.phone && <p className="text-gray-400 text-sm">{c.phone}</p>}
@@ -164,6 +166,7 @@ export default function Clients({ onSelectClient }: ClientsProps) {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Loader2, UserCircle } from 'lucide-react';
+import { X, Loader2, UserCircle, Star } from 'lucide-react';
 import { supabase, type Client as ClientType } from '../lib/supabase';
 import { normalizePhone, getPhoneError, getEmailError } from '../lib/validation';
 import ExistingClientNotice from './ExistingClientNotice';
@@ -15,6 +15,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [isVip, setIsVip] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingClientByName, setExistingClientByName] = useState<ClientType | null>(null);
@@ -31,10 +32,12 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
       setName(client.name);
       setPhone(client.phone ?? '');
       setEmail(client.email ?? '');
+      setIsVip(!!client.is_vip);
     } else {
       setName('');
       setPhone('');
       setEmail('');
+      setIsVip(false);
     }
   }, [isOpen, client]);
 
@@ -85,6 +88,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
       name: name.trim(),
       phone: phoneVal ? normalizePhone(phoneVal) : null,
       email: emailVal || null,
+      is_vip: isVip,
     };
 
     setSubmitting(true);
@@ -212,6 +216,19 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
               className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
               placeholder="e.g. maria@example.com"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="client-vip"
+              checked={isVip}
+              onChange={(e) => setIsVip(e.target.checked)}
+              className="rounded border-gray-600 bg-gray-900 text-amber-500 focus:ring-purple-500"
+            />
+            <label htmlFor="client-vip" className="flex items-center gap-1.5 text-gray-300 text-sm cursor-pointer">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              VIP client
+            </label>
           </div>
           <div className="flex gap-3 pt-2">
             <button

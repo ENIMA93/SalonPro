@@ -26,6 +26,7 @@ export type Client = {
   name: string;
   phone: string | null;
   email: string | null;
+  is_vip?: boolean;
   created_at: string;
 };
 
@@ -35,6 +36,7 @@ export type Service = {
   duration_min: number;
   price: number;
   gender_category: string;
+  service_type?: string;
   created_at: string;
 };
 
@@ -65,5 +67,7 @@ export type Inventory = {
   product_name: string;
   stock_count: number;
   price: number;
+  gender?: string | null;
+  category?: string | null;
   created_at: string;
 };

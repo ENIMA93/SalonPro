@@ -16,7 +16,14 @@ export default function Login() {
     const { error: err } = await signIn(email.trim(), password);
     setSubmitting(false);
     if (err) {
-      setError(err.message ?? 'Login failed');
+      const msg = err.message ?? 'Login failed';
+      if (msg === 'Failed to fetch' || msg.toLowerCase().includes('fetch')) {
+        setError(
+          'Cannot reach the server. Check your connection, that VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env, and that this app URL (e.g. http://localhost:5176) is allowed in Supabase Dashboard → Authentication → URL Configuration.'
+        );
+      } else {
+        setError(msg);
+      }
       return;
     }
   };

@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { Loader2, Plus, Pencil, Trash2, Search, LogIn, RefreshCw, UserPlus } from 'lucide-react';
+import { Loader2, Plus, Pencil, Search, LogIn, RefreshCw, UserPlus, Ban, CheckCircle } from 'lucide-react';
 import { supabase, type Staff as StaffType } from '../lib/supabase';
-import { useAuth } from '../lib/AuthContext';
 import { useStaff } from '../lib/StaffContext';
 import StaffModal from './StaffModal';
 
 export default function Staff() {
-  const { session } = useAuth();
   const { staff, loading, error, refreshStaff, removeStaff, updateStaff } = useStaff();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffType | null>(null);
@@ -35,105 +33,59 @@ export default function Staff() {
     setEditingStaff(null);
   };
 
-  const handleDelete = async (s: StaffType) => {
-    const hasAccount = !!s.email || !!s.user_id;
-    const msg = hasAccount
-      ? `Delete ${s.name}? This cannot be undone. They will still have a login account; disable or remove it in Supabase Dashboard → Authentication → Users if needed.`
-      : `Delete ${s.name}? This cannot be undone.`;
-    if (!window.confirm(msg)) return;
-    
-    const { error } = await supabase.from('staff').delete().eq('id', s.id);
+  const handleToggleActive = async (s: StaffType) => {
+    const newActive = !s.is_active;
+    const action = newActive ? 'Enable' : 'Disable';
+    if (!window.confirm(`${action} ${s.name}? ${newActive ? 'They will be able to sign in and appear as active again.' : 'They will no longer be able to sign in. Past operations stay linked to them.'}`)) return;
+    const { error } = await supabase.from('staff').update({ is_active: newActive }).eq('id', s.id);
     if (error) {
       alert(error.message);
       return;
     }
-    
-    // Update both database and local state
-    removeStaff(s.id);
+    updateStaff({ ...s, is_active: newActive });
     await refreshStaff();
   };
 
   const handleCreateLogin = async (s: StaffType) => {
     setCreatingLoginFor(s.id);
     
-    // Store original email to rollback if needed
-    const originalEmail = s.email;
-    
     try {
-      // Generate credentials
+      // Generate email
       const cleanName = s.name.toLowerCase().replace(/[^a-z0-9]/g, '');
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       const email = `${cleanName}${randomNum}@salon.local`;
-      const password = `Temp${randomNum}!`;
 
-      // Refresh session to get a valid token BEFORE updating database
-      const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession();
-      const token = freshSession?.access_token;
+      console.log('[Staff] Calling PostgreSQL function to create user account...');
       
-      console.log('[Staff] Session refresh result:', {
-        hasSession: !!freshSession,
-        hasToken: !!token,
-        tokenLength: token?.length,
-        refreshError: refreshError?.message,
-        expiresAt: freshSession?.expires_at,
-        currentTime: Math.floor(Date.now() / 1000)
-      });
-      
-      if (refreshError || !token) {
-        throw new Error(`Session expired. Please refresh the page and try again. Error: ${refreshError?.message || 'No token'}`);
-      }
-
-      // Update staff record with email
-      const { error: updateError } = await supabase
-        .from('staff')
-        .update({ email })
-        .eq('id', s.id);
-
-      if (updateError) {
-        throw new Error(`Failed to update staff email: ${updateError.message}`);
-      }
-
-      // Call Edge Function to create user account
-      const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-staff-user`;
-      
-      console.log('[Staff] Calling Edge Function to create user account...');
-      console.log('[Staff] Function URL:', FUNCTIONS_URL);
-      console.log('[Staff] Token (first 20 chars):', token.substring(0, 20) + '...');
-      
-      const response = await fetch(FUNCTIONS_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          staff_id: s.id,
-          email,
-          password,
-        }),
+      // Call the PostgreSQL function to create user account
+      const { data, error } = await supabase.rpc('create_staff_user_account', {
+        staff_id_param: s.id,
+        email_param: email
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
-        // Rollback email update if Edge Function fails
-        console.log('[Staff] Edge Function failed, rolling back email update...');
-        await supabase
-          .from('staff')
-          .update({ email: originalEmail })
-          .eq('id', s.id);
-        
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
       }
 
-      const result = await response.json();
-      console.log('Login created successfully:', result);
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
-      // Update the staff member in local state with the new user_id
-      const updatedStaff = { ...s, email, user_id: result.user_id };
+      if (!data?.success) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('Login created successfully via PostgreSQL function:', data);
+
+      // Update the staff member in local state with the new user_id and email
+      const updatedStaff = { 
+        ...s, 
+        email: data.email, 
+        user_id: data.user_id 
+      };
       updateStaff(updatedStaff);
 
-      alert(`Login created successfully!\n\nEmail: ${email}\nTemporary Password: ${password}\n\nThey will be prompted to change the password on first login.`);
+      alert(`Login created successfully!\n\nEmail: ${data.email}\nTemporary Password: ${data.temporary_password}\n\nThey will be prompted to change the password on first login.`);
 
     } catch (error) {
       console.error('Failed to create login:', error);
@@ -144,15 +96,16 @@ export default function Staff() {
   };
 
   return (
-    <div className="flex-1 bg-gray-900 min-h-screen">
-      <div className="p-8">
-        <StaffModal
-          isOpen={modalOpen}
-          onClose={handleCloseModal}
-          onSuccess={handleSuccess}
-          staff={editingStaff}
-        />
-        <div className="flex items-center justify-between mb-8">
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-900 overflow-hidden">
+      <StaffModal
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleSuccess}
+        staff={editingStaff}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
             <p className="text-gray-400">Barbers and stylists at your salon.</p>
@@ -270,17 +223,23 @@ export default function Staff() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(s)}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    aria-label="Delete"
+                    onClick={() => handleToggleActive(s)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      s.is_active
+                        ? 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
+                        : 'text-gray-400 hover:text-green-400 hover:bg-green-500/10'
+                    }`}
+                    aria-label={s.is_active ? 'Disable' : 'Enable'}
+                    title={s.is_active ? 'Disable (keeps history)' : 'Enable again'}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {s.is_active ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

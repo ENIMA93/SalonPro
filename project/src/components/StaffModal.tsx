@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2, User, CheckCircle } from 'lucide-react';
 import { supabase, type Staff as StaffType } from '../lib/supabase';
-import { useAuth } from '../lib/AuthContext';
 import { useStaff } from '../lib/StaffContext';
 
 const MIN_PASSWORD_LENGTH = 8;
-const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-staff-user`;
-const SET_PASSWORD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/set-staff-password`;
 
 interface StaffModalProps {
   isOpen: boolean;
@@ -16,8 +13,7 @@ interface StaffModalProps {
 }
 
 export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffModalProps) {
-  const { session } = useAuth();
-  const { addStaff, updateStaff, refreshStaff } = useStaff();
+  const { addStaff, updateStaff } = useStaff();
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
@@ -83,7 +79,7 @@ export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffM
   };
 
   const handleSetPassword = async () => {
-    if (!staff?.id || !newPassword.trim()) return;
+    if (!staff?.user_id || !newPassword.trim()) return;
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setSetPasswordError(`At least ${MIN_PASSWORD_LENGTH} characters`);
       return;
@@ -94,22 +90,17 @@ export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffM
     }
     setSetPasswordError(null);
     setSetPasswordSubmitting(true);
-    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession();
-    const token = freshSession?.access_token ?? session?.access_token;
-    if (refreshError || !token) {
-      setSetPasswordSubmitting(false);
-      setSetPasswordError('Session expired. Sign in again and retry.');
+    const { data, error } = await supabase.rpc('admin_set_staff_password', {
+      new_password: newPassword,
+      target_user_id: staff.user_id
+    });
+    setSetPasswordSubmitting(false);
+    if (error) {
+      setSetPasswordError(error.message);
       return;
     }
-    const res = await fetch(SET_PASSWORD_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ staff_id: staff.id, new_password: newPassword }),
-    });
-    const result = await res.json().catch(() => ({}));
-    setSetPasswordSubmitting(false);
-    if (!res.ok) {
-      setSetPasswordError((result?.error as string) || `Failed (${res.status})`);
+    if (data?.error) {
+      setSetPasswordError(data.error);
       return;
     }
     setSetPasswordSuccess(true);
@@ -167,97 +158,43 @@ export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffM
       return;
     }
 
-    const { data: newStaff, error: insertError } = await supabase
-      .from('staff')
-      .insert({
-        name: name.trim(),
-        role: role.trim(),
-        is_active: isActive,
-        email: email.trim(),
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      setSubmitting(false);
-      setError(insertError.message);
-      return;
-    }
-
-    // Refresh session so we send a valid, non-expired JWT (avoids "Invalid JWT" from Edge Function)
-    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession();
-    const token = freshSession?.access_token ?? session?.access_token;
-    
-    if (refreshError || !token) {
-      setSubmitting(false);
-      setError('Session expired or invalid. Please sign in again.');
-      return;
-    }
-
-    let res: Response;
-    // (Debug JWT info is sent via ingest above; do not log token content.)
-    console.log('[StaffModal] Calling Edge Function to create user account...');
-    try {
-      res = await fetch(FUNCTIONS_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          staff_id: newStaff.id,
-          email: email.trim(),
-          password,
-        }),
-      });
-      console.log('[StaffModal] Edge Function response status:', res.status);
-    } catch (err) {
-      console.error('[StaffModal] Network error calling Edge Function:', err);
-      await supabase.from('staff').delete().eq('id', newStaff.id);
-      setSubmitting(false);
-      setError('Network error. Is the app connected? If using Edge Functions, ensure create-staff-user is deployed.');
-      return;
-    }
-
-    const result = await res.json().catch(async () => {
-      try {
-        const text = await res.text();
-        return { error: text || `Server error (${res.status})` };
-      } catch {
-        return { error: `Request failed (${res.status})` };
-      }
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_staff_with_login', {
+      name_param: name.trim(),
+      role_param: role.trim(),
+      email_param: email.trim(),
+      password_param: password,
+      is_active_param: isActive
     });
-    
-    if (!res.ok) {
-      console.error('[StaffModal] Edge Function failed:', { status: res.status, result });
-      // Don't delete the staff record - let them retry creating the user account
+
+    if (rpcError) {
       setSubmitting(false);
-      const msg = result?.error ?? result?.message ?? `Failed to create staff account (${res.status})`;
-      const msgStr = typeof msg === 'string' ? msg : 'Failed to create staff account';
-      if (res.status === 404) {
-        setError('Edge Function not found. Deploy it: supabase functions deploy create-staff-user');
-        return;
-      }
-      if (res.status === 401 && /jwt|token|unauthorized|expired/i.test(msgStr)) {
-        const hint =
-          ' Sign out and sign in again, then retry. If it persists, ensure Edge Function create-staff-user has secrets SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (Dashboard → Edge Functions → Secrets).';
-        setError(msgStr + hint);
-        return;
-      }
-      setError(`${msgStr}. Staff record saved but user account creation failed. You can edit this staff member to retry creating their login.`);
+      setError(rpcError.message);
       return;
     }
+
+    if (rpcData?.error) {
+      setSubmitting(false);
+      setError(rpcData.error);
+      return;
+    }
+
+    if (!rpcData?.success) {
+      setSubmitting(false);
+      setError('Failed to create staff account');
+      return;
+    }
+
+    console.log('[StaffModal] Staff created with login via RPC:', rpcData);
 
     setSubmitting(false);
-    
-    // Create the complete staff object and add it to global context immediately
+
     const completeStaff: StaffType = {
-      id: newStaff.id,
-      name: name.trim(),
-      role: role.trim(),
-      email: email.trim(),
-      user_id: result?.user_id || null, // Use the user_id from Edge Function if available
-      is_active: isActive,
+      id: rpcData.id,
+      name: rpcData.name,
+      role: rpcData.role,
+      email: rpcData.email,
+      user_id: rpcData.user_id,
+      is_active: rpcData.is_active,
       created_at: new Date().toISOString()
     };
 
@@ -265,9 +202,9 @@ export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffM
     addStaff(completeStaff);
 
     setSuccess({
-      name: name.trim(),
-      email: email.trim(),
-      password: password
+      name: rpcData.name,
+      email: rpcData.email,
+      password: rpcData.temporary_password
     });
 
     // Don't call refreshStaff here - addStaff already updated the local state
@@ -419,14 +356,14 @@ export default function StaffModal({ isOpen, onClose, onSuccess, staff }: StaffM
             <label htmlFor="staff-active" className="text-gray-300 text-sm">Active</label>
           </div>
 
-          {hasLogin && (
+          {isEdit && staff?.user_id && (
             <div className="border-t border-gray-700 pt-4 space-y-3">
-              <h3 className="text-sm font-medium text-white">Password</h3>
+              <h3 className="text-sm font-medium text-white">Reset password (admin)</h3>
               {setPasswordError && (
                 <p className="text-sm text-red-400" role="alert">{setPasswordError}</p>
               )}
               {setPasswordSuccess && (
-                <p className="text-sm text-green-400">Temporary password set. They will be prompted to change it on next login.</p>
+                <p className="text-sm text-green-400">Password updated. They will be prompted to change it on next login.</p>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <input

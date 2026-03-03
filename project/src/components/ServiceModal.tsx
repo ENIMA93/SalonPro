@@ -10,12 +10,14 @@ interface ServiceModalProps {
 }
 
 const GENDER_OPTIONS = ['all', 'men', 'women', 'kids'];
+const SERVICE_TYPE_OPTIONS = ['hair', 'face', 'hand', 'body', 'nails', 'other'];
 
 export default function ServiceModal({ isOpen, onClose, onSuccess, service }: ServiceModalProps) {
   const [name, setName] = useState('');
   const [durationMin, setDurationMin] = useState<number>(30);
   const [price, setPrice] = useState<number>(0);
   const [genderCategory, setGenderCategory] = useState('all');
+  const [serviceType, setServiceType] = useState('hair');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,11 +31,13 @@ export default function ServiceModal({ isOpen, onClose, onSuccess, service }: Se
       setDurationMin(service.duration_min);
       setPrice(Number(service.price));
       setGenderCategory(service.gender_category || 'all');
+      setServiceType(service.service_type ?? 'hair');
     } else {
       setName('');
       setDurationMin(30);
       setPrice(0);
       setGenderCategory('all');
+      setServiceType('hair');
     }
   }, [isOpen, service]);
 
@@ -67,6 +71,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess, service }: Se
           duration_min: durationMin,
           price,
           gender_category: genderCategory,
+          service_type: serviceType,
         })
         .eq('id', service.id);
       setSubmitting(false);
@@ -80,6 +85,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess, service }: Se
         duration_min: durationMin,
         price,
         gender_category: genderCategory,
+        service_type: serviceType,
       });
       setSubmitting(false);
       if (insertError) {
@@ -152,19 +158,35 @@ export default function ServiceModal({ isOpen, onClose, onSuccess, service }: Se
               />
             </div>
           </div>
-          <div>
-            <label className="block text-gray-400 text-sm font-medium mb-1">Gender category</label>
-            <select
-              value={genderCategory}
-              onChange={(e) => setGenderCategory(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
-            >
-              {GENDER_OPTIONS.map((opt) => (
-                <option key={opt} value={opt} className="bg-gray-800">
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Gender</label>
+              <select
+                value={genderCategory}
+                onChange={(e) => setGenderCategory(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+              >
+                {GENDER_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} className="bg-gray-800">
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm font-medium mb-1">Type</label>
+              <select
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+              >
+                {SERVICE_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} className="bg-gray-800">
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex gap-3 pt-2">
             <button

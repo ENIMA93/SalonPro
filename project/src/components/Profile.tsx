@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 const MIN_PASSWORD_LENGTH = 8;
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -25,11 +25,19 @@ export default function Profile() {
     }
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       setMessage({ type: 'error', text: error.message });
       return;
     }
+    const { error: rpcError } = await supabase.rpc('set_password_changed');
+    if (rpcError) {
+      setSubmitting(false);
+      setMessage({ type: 'error', text: rpcError.message });
+      return;
+    }
+    await refreshProfile();
+    setSubmitting(false);
     setMessage({ type: 'success', text: 'Password updated. Use your new password next time you sign in.' });
     setNewPassword('');
     setConfirmPassword('');
